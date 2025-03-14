@@ -1,0 +1,9 @@
+record(waveform, "test")
+{
+    field(DTYP, "COMAG")
+    field(INP, "@coff2.csv")
+#    field(INP, "[1,2,3,10,20,30]")
+    field(NELM, "410")
+    field(FTVL, "DOUBLE")
+    field(SCAN, "1 second")
+}
