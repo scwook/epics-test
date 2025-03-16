@@ -5,5 +5,36 @@ record(waveform, "test")
 #    field(INP, "[1,2,3,10,20,30]")
     field(NELM, "410")
     field(FTVL, "DOUBLE")
-    field(SCAN, "1 second")
+#    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(FLNK, "array1")
+}
+
+record(subArray, "array1")
+{
+    field(DTYP, "Soft Channel")
+    field(INP, "test")
+    field(MALM, "410")
+    field(FTVL, "DOUBLE")
+    field(NELM, "10")
+    field(INDX, "0")
+    field(SCAN, "Passive")
+}
+
+record(longout, "swing")
+{
+    field(VAL, "0")
+    field(FLNK, "list")
+}
+
+record(calcout, "list")
+{
+    field(INPA, "swing")
+    field(CALC, "$(CALC)")
+    field(OUT, "array1.INDX PP") 
+}
+
+record(bi, "aa")
+{
+    field(DESC, " ")
 }
