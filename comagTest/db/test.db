@@ -1,40 +1,308 @@
-record(waveform, "test")
+# Beam optics coefficient include plus and munus angle
+record(waveform, "KOBRA-OPTICS:BEAM-COE:Total")
 {
     field(DTYP, "COMAG")
-    field(INP, "@coff2.csv")
+    field(INP, "@coeff.csv")
 #    field(INP, "[1,2,3,10,20,30]")
-    field(NELM, "410")
+    field(NELM, "810")
     field(FTVL, "DOUBLE")
 #    field(SCAN, "1 second")
     field(PINI, "YES")
-    field(FLNK, "array1")
+    field(FLNK, "KOBRA-OPTICS:BEAM-COE:List")
 }
 
-record(subArray, "array1")
+# Selected coefficient related with SetAngle
+# This array decided based on the result of calculation index
+# This must be processed when modifyed calculation index
+record(subArray, "KOBRA-OPTICS:BEAM-COE:List")
 {
     field(DTYP, "Soft Channel")
-    field(INP, "test")
-    field(MALM, "410")
+    field(INP, "KOBRA-OPTICS:BEAM-COE:Total")
+    field(MALM, "810")
     field(FTVL, "DOUBLE")
     field(NELM, "10")
     field(INDX, "0")
     field(SCAN, "Passive")
+    field(FLNK, "KOBRA-OPTICS:BEAM-POS:Fanout")
 }
 
-record(longout, "swing")
+record(fanout, "KOBRA-OPTICS:BEAM-POS:Fanout")
+{
+    field(SELM, "All")
+    field(LNK0, "KOBRA-OPTICS:BeamDump:Pos")
+    field(LNK1, "KOBRA-OPTICS:BeamDump:Pos_8")
+    field(LNK2, "KOBRA-OPTICS:BeamDump:Pos_13")
+    field(LNK3, "KOBRA-OPTICS:BeamDump:Pos_14")
+    field(LNK4, "KOBRA-OPTICS:BeamDump:Pos_15")
+    field(LNK5, "KOBRA-OPTICS:BeamDump:Pos_16")
+    field(LNK6, "KOBRA-OPTICS:BeamDump:Pos_17")
+}
+
+# User input SetAngle
+record(longout, "KOBRA-OPTICS:SWINGER:SetAngle")
 {
     field(VAL, "0")
-    field(FLNK, "list")
+    field(FLNK, "KOBRA-OPTICS:BEAM-SWING:Fanout")
 }
 
-record(calcout, "list")
+# Process list when SetAngle modified
+record(fanout, "KOBRA-OPTICS:BEAM-SWING:Fanout")
 {
-    field(INPA, "swing")
-    field(CALC, "$(CALC)")
-    field(OUT, "array1.INDX PP") 
+    field(SELM, "All")
+    field(LNK0, "KOBRA-OPTICS:BEAM-COE:Index")
+    field(LNK1, "KOBRA-OPTICS:BEAM-COL:Sel")
 }
 
-record(bi, "aa")
+# Calculation index of coefficientd waveform
+# This must be processed when SetAngle modified
+record(calcout, "KOBRA-OPTICS:BEAM-COE:Index")
 {
-    field(DESC, " ")
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "A>=0 ? A*10 : (-1)*(A*10) + 400")
+    field(OUT, "KOBRA-OPTICS:BEAM-COE:List.INDX PP") 
 }
+
+# Base ratio value
+record(calc, "KOBRA-OPTICS:BEAM-RTO:Base")
+{
+    field(INPA, "KOBRA-OPTICS:F0-F1:Brho")
+    field(INPB, "KOBRA-OPTICS:SWIMGER:BrhoAfterTgt")
+    field(CALC, "A / B")
+    field(SCAN, "1 second")
+}
+
+# Charge state 40Ar8+
+record(calc, "KOBRA-OPTICS:BEAM-RTO:R08")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A * 8 / 18")
+    field(SCAN, "1 second")
+}
+
+# Charge state 40Ar13+
+record(calc, "KOBRA-OPTICS:BEAM-RTO:R13")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A * 13 / 18")
+    field(SCAN, "1 second")
+}
+
+# Charge state 40Ar14+
+record(calc, "KOBRA-OPTICS:BEAM-RTO:R14")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A * 14 / 18")
+    field(SCAN, "1 second")
+}
+
+# Charge state 40Ar15+
+record(calc, "KOBRA-OPTICS:BEAM-RTO:R15")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A * 15 / 18")
+    field(SCAN, "1 second")
+}
+
+# Charge state 40Ar16+
+record(calc, "KOBRA-OPTICS:BEAM-RTO:R16")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A * 16 / 18")
+    field(SCAN, "1 second")
+}
+
+# Charge state 40Ar17+
+record(calc, "KOBRA-OPTICS:BEAM-RTO:R17")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A * 17 / 18")
+    field(SCAN, "1 second")
+}
+
+# Calculation beam dump position
+# Below calc records should be processed when modified selected coefficient
+record(calc, "KOBRA-OPTICS:BeamDump:Pos")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:Base")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+record(calc, "KOBRA-OPTICS:BeamDump:Pos_8")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:R08")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+record(calc, "KOBRA-OPTICS:BeamDump:Pos_13")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:R13")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+record(calc, "KOBRA-OPTICS:BeamDump:Pos_14")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:R14")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+record(calc, "KOBRA-OPTICS:BeamDump:Pos_15")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:R15")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+record(calc, "KOBRA-OPTICS:BeamDump:Pos_16")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:R16")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+record(calc, "KOBRA-OPTICS:BeamDump:Pos_17")
+{
+    field(INPA, "KOBRA-OPTICS:BEAM-COE:List.VAL[0]")
+    field(INPB, "KOBRA-OPTICS:BEAM-COE:List.VAL[1]")
+    field(INPC, "KOBRA-OPTICS:BEAM-COE:List.VAL[2]")
+    field(INPD, "KOBRA-OPTICS:BEAM-COE:List.VAL[3]")
+    field(INPE, "KOBRA-OPTICS:BEAM-COE:List.VAL[4]")
+    field(INPF, "KOBRA-OPTICS:BEAM-COE:List.VAL[5]")
+    field(INPG, "KOBRA-OPTICS:BEAM-COE:List.VAL[6]")
+    field(INPH, "KOBRA-OPTICS:BEAM-COE:List.VAL[7]")
+    field(INPI, "KOBRA-OPTICS:BEAM-COE:List.VAL[8]")
+    field(INPJ, "KOBRA-OPTICS:BEAM-COE:List.VAL[9]")
+    field(INPK, "KOBRA-OPTICS:BEAM-RTO:R17")
+    field(CALC, "A + B*K + C*K^2 + D*K^3 + E*K^4 + F*K^5 + G*K^6 + H*K^7 + I*K^8 + J*K^9")
+}
+
+# Select beam collimator select
+record(calcout, "KOBRA-OPTICS:BEAM-COL:Sel")
+{
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "A<-65?1:A>=-65&&A<-39?2:A>=39&&A<0?3:A>=0&&A<=39?4:A>39&&A<=65?5:6")
+    field(OUT, "KOBRA-OPTICS:BEAM-COL:Pro.SELN PP")
+}
+
+# Process beam collimator calc
+record(fanout, "KOBRA-OPTICS:BEAM-COL:Pro")
+{
+    field(SELM, "Specified")
+    field(SELN, "0")
+    field(LNK1, "KOBRA-OPTICS:BEAM-COL:POS1 PP")
+    field(LNK2, "KOBRA-OPTICS:BEAM-COL:POS2 PP")
+    field(LNK3, "KOBRA-OPTICS:BEAM-COL:POS3 PP")
+    field(LNK4, "KOBRA-OPTICS:BEAM-COL:POS4 PP")
+    field(LNK5, "KOBRA-OPTICS:BEAM-COL:POS5 PP")
+    field(LNK6, "KOBRA-OPTICS:BEAM-COL:POS6 PP")
+    field(SCAN, "Passive")
+}
+
+# Swing angle < -65
+record(calcout, "KOBRA-OPTICS:BEAM-COL:POS1")
+{
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "319.4 * tan(-A/1000) * (-1)")
+    field(SCAN, "Passive")
+   # field(OUT, "KOBRA-OPTICS:BeamCollimator:Pos")
+}
+
+# -65 <= Swing angle < -39
+record(calcout, "KOBRA-OPTICS:BEAM-COL:POS2")
+{
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "(16 + (419.4 * tan(-A/1000) - 16) / (20 * tan(-A/1000) + 1)) * (-1)")
+   # field(OUT, "KOBRA-OPTICS:BeamCollimator:Pos")
+}
+
+# -39 <= Swing angle < 0
+record(calcout, "KOBRA-OPTICS:BEAM-COL:POS3")
+{
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "-319.4 * tan(A/1000)")
+   # field(OUT, "KOBRA-OPTICS:BeamCollimator:Pos")
+}
+
+# 0 <= Swing angle <= 39
+record(calcout, "KOBRA-OPTICS:BEAM-COL:POS4")
+{ 
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "319.4 * tan(A/1000)")
+   # field(OUT, "KOBRA-OPTICS:BeamCollimator:Pos")
+}
+
+# 39 < Swing angle <= 65
+record(calcout, "KOBRA-OPTICS:BEAM-COL:POS5")
+{ 
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "16 + (419.4 * tan(A/1000) - 16) / (20 * tan(A/1000) + 1)")
+   # field(OUT, "KOBRA-OPTICS:BeamCollimator:Pos")
+}
+
+# 65 < Swing angle
+record(calcout, "KOBRA-OPTICS:BEAM-COL:POS6")
+{ 
+    field(INPA, "KOBRA-OPTICS:SWINGER:SetAngle")
+    field(CALC, "319.4 * tan(a/1000)")
+   # field(OUT, "KOBRA-OPTICS:BeamCollimator:Pos")
+}
+
+
+

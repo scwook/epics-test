@@ -25,6 +25,7 @@
 #include "devSup.h"
 #include "waveformRecord.h"
 #include "epicsExport.h"
+#include "errlog.h"
 
 #include <time.h>
 
@@ -32,6 +33,8 @@
 static long init_record(dbCommon *pcommon);
 static long read_wf(waveformRecord *prec);
 static long readCoff(waveformRecord *prec);
+
+static long num;
 
 wfdset devWaveformCoMagAsync = {
     {5, NULL, NULL, init_record, NULL},
@@ -42,11 +45,12 @@ static long init_record(dbCommon *pcommon)
 {
     waveformRecord *prec = (waveformRecord *)pcommon;
     long nelm = prec->nelm;
+    num = prec->nelm;
 
     long status = dbLoadLinkArray(&prec->inp, prec->ftvl, prec->bptr, &nelm);
 
-    prec->nelm = 410;
-    nelm = 410;
+    prec->nelm = num;
+    nelm = num;
 
     if (!status)
     {
@@ -56,12 +60,9 @@ static long init_record(dbCommon *pcommon)
     else
         prec->nord = 0;
 
-    prec->nord = 410;
+    prec->nord = num;
 
-    printf("file: %s\n", prec->inp.value.instio.string);
     status = readCoff(prec);
-
-    // double *data = prec->bptr;
 
     return status;
 }
@@ -75,12 +76,13 @@ static long readCoff(waveformRecord *prec)
 
     if (file == NULL)
     {
-        printf("Error opening file %s\n", filepath);
+        epicsPrintf("\033[31mError: Can not found file %s \033[0m\n", filepath);
+
         return 1;
     }
 
     char line[4096];
-    const int MAX_NUMS = 410;
+    const int MAX_NUMS = num;
     double numbers[MAX_NUMS];
     int num_count = 0;
 
@@ -107,6 +109,10 @@ static long readCoff(waveformRecord *prec)
     }
 
     fclose(file);
+
+    if(num_count != num) {
+        epicsPrintf("\33[33mWarning: The set value(%d) does not match the actual value(%d)\33[0m\n", num, num_count);
+    }
 
     return 0;
 }
