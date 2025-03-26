@@ -119,5 +119,7 @@ static long readCoff(waveformRecord *prec)
 
 static long read_wf(waveformRecord *prec)
 {
+    printf("Pact: %d\n", prec->pact);
+//    readCoff(prec);
     return 0;
 }

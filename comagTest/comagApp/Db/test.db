@@ -1,3 +1,10 @@
+# Process coefficient total record
+record(bo, "KOBRA-OPTICS:BEAM-COE:Load")
+{
+    #field(FLNK, "KOBRA-OPTICS:BEAM-COE:Total")
+    field(OUT, "KOBRA-OPTICS:BEAM-COE:Total.PACT")
+}
+
 # Beam optics coefficient include plus and munus angle
 record(waveform, "KOBRA-OPTICS:BEAM-COE:Total")
 {
