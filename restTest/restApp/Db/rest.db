@@ -1,0 +1,51 @@
+record(bo, "rest:onoff")
+{
+    field(OUT, "rest:seq.OFFS PP")
+}
+
+record(seq, "rest:seq")
+{
+    field(SELM, "Specified")
+    field(LNK1, "rest:off PP")
+    field(LNK2, "rest:on PP")
+}
+
+record(stringout, "rest:address")
+{
+    field(VAL, "http://192.168.150.209:9090/")
+}
+
+record(stringout, "rest:endOn")
+{
+    field(VAL, "plug4On")
+}
+
+record(stringout, "rest:endOff")
+{
+    field(VAL, "plug4Off")
+}
+
+record(aSub, "rest:on")
+{
+    field(INPA, "rest:address")
+    field(INPB, "rest:endOn")
+    field(FTA, "STRING")
+    field(FTB, "STRING")
+    field(NEA, "64")
+    field(NEB, "64")
+    field(INAM, "curlSubInit")
+    field(SNAM, "curlGetRequest")
+}
+
+record(aSub, "rest:off")
+{
+    field(INPA, "rest:address")
+    field(INPB, "rest:endOff")
+    field(FTA, "STRING")
+    field(FTB, "STRING")
+    field(NEA, "64")
+    field(NEB, "64")
+    field(INAM, "curlSubInit")
+    field(SNAM, "curlGetRequest")
+}
+
