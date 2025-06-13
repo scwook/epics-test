@@ -26,8 +26,8 @@
 #MYMODULE = $(MODULES)/my-module
 
 # If using the sequencer, point SNCSEQ at its top directory:
-CURL_LIBS = /opt/local/lib
-CURL_INCLUDE = /opt/local/include
+#CURL_LIBS = /opt/local/lib
+#CURL_INCLUDE = /opt/local/include
 
 # EPICS_BASE should appear last so earlier modules can override stuff:
 EPICS_BASE = /Users/scwook/epics/R7.0.8/base

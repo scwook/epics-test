@@ -12,7 +12,7 @@ record(seq, "rest:seq")
 
 record(stringout, "rest:address")
 {
-    field(VAL, "http://192.168.150.123:9090/")
+    field(VAL, "http://192.168.150.209:9090/")
 }
 
 record(stringout, "rest:endOn")
@@ -48,4 +48,3 @@ record(aSub, "rest:off")
     field(INAM, "curlSubInit")
     field(SNAM, "curlGetRequest")
 }
-
