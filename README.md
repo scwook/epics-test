@@ -10,3 +10,4 @@ EPICS 개발용 테스트 저장소
 ### pythonTest
 - opiMaker.py : text update widget을 원하는 개수만큼 만드는 코드
 - oriental_ard-kd_checksum.py : 오리엔탈 모터 드라이버 ARD-KD Error check 값 계산하는 코드
+- cn0531.py : Analog Device 제품 CN0531 보드 Analog output 테스트용 코드 (Raspberry Pi)
