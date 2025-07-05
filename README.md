@@ -11,3 +11,5 @@ EPICS 개발용 테스트 저장소
 - opiMaker.py : text update widget을 원하는 개수만큼 만드는 코드
 - oriental_ard-kd_checksum.py : 오리엔탈 모터 드라이버 ARD-KD Error check 값 계산하는 코드
 - cn0531.py : Analog Device 제품 CN0531 보드 Analog output 테스트용 코드 (Raspberry Pi)
+- tcp_client : TCP 통신 client 테스트 코드
+- tcp_server : TCP 통신 server 테스트 코드
