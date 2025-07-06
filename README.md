@@ -13,3 +13,4 @@ EPICS 개발용 테스트 저장소
 - cn0531.py : Analog Device 제품 CN0531 보드 Analog output 테스트용 코드 (Raspberry Pi)
 - tcp_client : TCP 통신 client 테스트 코드
 - tcp_server : TCP 통신 server 테스트 코드
+- cls_daq_fpga.py : CLaSsy FPGA 기반 DAQ 코드
