@@ -1,0 +1,36 @@
+record(bo, "cls:trgMode")
+{
+    field(DTYP, "stream")
+    field(OUT, "@clsDaq.proto SetTrgMode $(PORT)")
+}
+
+record(ao, "cls:trgWidth")
+{
+    field(DTYP, "stream")
+    field(OUT, "@clsDaq.proto SetTrgWidth $(PORT)")
+}
+
+record(ao, "cls:trgDelay")
+{
+    field(DTYP, "stream")
+    field(OUT, "@clsDaq.proto SetTrgDelay $(PORT)")
+}
+
+record(bo, "cls:clear")
+{
+    field(DTYP, "stream")
+    field(OUT, "@clsDaq.proto SetClear $(PORT)")
+}
+
+record(longin, "cls:count")
+{
+    field(DTYP, "stream")
+    field(INP, "@clsDaq.proto GetCount $(PORT)")
+    field(SCAN, "1 second")
+}
+
+record(ao, "cls:volt")
+{
+    field(DTYP, "stream")
+    field(OUT, "@clsDaq.proto SetVolt $(PORT)")
+}

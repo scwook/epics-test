@@ -1,0 +1,26 @@
+OutTerminator = CR LF;
+
+SetTrgMode {
+    out "CLS:SetTrgMode %d";
+}
+
+SetTrgWidth {
+    out "CLS:SetTrgWidth %f";
+}
+
+SetTrgDelay {
+    out "CLS:SetTrgDelay %f";
+}
+
+SetClear {
+    out "CLS:SetClrCount";
+}
+
+SetVolt {
+    out "CLS:SetVolt %f";
+}
+
+GetCount {
+    out "CLS:GetCount";
+    in "%d";
+}
