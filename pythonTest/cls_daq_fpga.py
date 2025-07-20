@@ -38,9 +38,9 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.ttk import Combobox
 
-from mcculw import ul
-from mcculw.device_info import DaqDeviceInfo
-from mcculw.ul import ULError
+# from mcculw import ul
+# from mcculw.device_info import DaqDeviceInfo
+# from mcculw.ul import ULError
 
 # EPICS pvapy
 from pvaccess import *
@@ -59,10 +59,10 @@ class CLS_Scan(UIExample):
         # connects to the DAQ and outputs 0V
         super(CLS_Scan, self).__init__(master)
         use_device_detection = True
-        self.board_num = 0
+        # self.board_num = 0
         self.scan_running = False
         self.scan_paused = False
-        self.ao_set = 0.0
+        # self.ao_set = 0.0
         self.giver = giver
         self.scanning = scan_on
 
@@ -79,29 +79,32 @@ class CLS_Scan(UIExample):
         # self.triggering = trig_on
 
         # creates the UI if proper conditions are met
-        try:
-            if use_device_detection:
-                self.configure_first_detected_device()
+        # try:
+            # if use_device_detection:
+                # self.configure_first_detected_device()
 
-            self.device_info = DaqDeviceInfo(self.board_num)
-            self.ctr_info = self.device_info.get_ctr_info()
-            self.ao_info = self.device_info.get_ao_info()
-            if self.ctr_info.is_supported:
-                if self.device_info.supports_analog_input:
-                    self.ai_info = self.device_info.get_ai_info()
-                    if self.ao_info.is_supported and self.ao_info.supports_v_out:
-                        self.create_widgets()
-                    else:
-                        self.create_unsupported_widgets()
-                else:
-                    self.create_unsupported_widgets()
-            else:
-                self.create_unsupported_widgets()
-            self.giver.put("GUI Created!")
+            # self.device_info = DaqDeviceInfo(self.board_num)
+            # self.ctr_info = self.device_info.get_ctr_info()
+            # self.ao_info = self.device_info.get_ao_info()
+            # if self.ctr_info.is_supported:
+            #     if self.device_info.supports_analog_input:
+            #         self.ai_info = self.device_info.get_ai_info()
+            #         if self.ao_info.is_supported and self.ao_info.supports_v_out:
+            #             self.create_widgets()
+            #         else:
+            #             self.create_unsupported_widgets()
+            #     else:
+            #         self.create_unsupported_widgets()
+            # else:
+            #     self.create_unsupported_widgets()
+
+        self.create_widgets()
+
+        self.giver.put("GUI Created!")
             # self.trigQueue.put(self.board_num)
 
-        except ULError:
-            self.create_unsupported_widgets(True)
+        # except ULError:
+            # self.create_unsupported_widgets(True)
 
     #########################################################################
 
@@ -117,7 +120,10 @@ class CLS_Scan(UIExample):
                 self.giver.put(j)
             if self.scan_running:
                 self.ao_set = self.scan_start
-                ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
+                # ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
+                message = "CLS:SetVolt\r\n"
+                client_socket.send(message.encode())
+
                 self.cycle_status_label["text"] = "Current cycle #:     " + str(j)
 
                 # Determine the condition for the while loop
@@ -129,307 +135,144 @@ class CLS_Scan(UIExample):
                 else:
                     condition = (self.ao_set <= (self.scan_stop + 1E-6))
 
-                if self.MCA4_status == 1:
-                    # Start a scan for the MCA4
-                    # erase the data to prepare for the next set
-                    string = 'erase'
-                    string = string.encode('utf-8')
-                    self.mca4DLL.RunCmd(0, string)
-                    # starts the acquisition
-                    string = 'start'
-                    string = string.encode('utf-8')
-                    self.mca4DLL.RunCmd(0, string)
-                    time.sleep(2)
+                # if self.MCA4_status == 1:
+                #     # Start a scan for the MCA4
+                #     # erase the data to prepare for the next set
+                #     string = 'erase'
+                #     string = string.encode('utf-8')
+                #     self.mca4DLL.RunCmd(0, string)
+                #     # starts the acquisition
+                #     string = 'start'
+                #     string = string.encode('utf-8')
+                #     self.mca4DLL.RunCmd(0, string)
+                #     time.sleep(2)
 
                 trigger = self.trig_mode
-                # Trigger Mode
-                if trigger:
-                    # print('Trigger Mode')
-                    while condition and self.scan_running:
-                        # Wait trigger input
-                        # self.triggering.wait()
-                        while not ul.d_bit_in(self.board_num, 1, 1):
-                            # print(ul.d_bit_in(self.board_num, 1, 1))
-                            continue
 
-                        beamDealy = self.trig_delay / 1000
-                        time.sleep(beamDealy)
+                # loop for the steps
+                while condition and self.scan_running:
+                    # Set AO voltage
+                    ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
 
-                        # Set AO voltage
-                        ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
+                    if self.MCA4_status == 1:
+                        ul.v_out(self.board_num, 1, self.ao_range, 5)
+                        '''opens the gate for the laser pulses'''
 
-                        value_ct = 0
-                        startTime = time.time()
-                        
-                        triggerWidth = self.trig_width / 1000
-                        freq = self.trig_freq
-                        dwellTime = self.scan_dwell_time / 1000
+                    # Reset counters at the start of dwell time
+                    if self.DAQ_status == 1:
+                        ul.c_clear(self.board_num, self.channel_ct)
 
-                        if triggerWidth > dwellTime:
-                            triggerWidth = dwellTime
-                            # self.trigwidth_entry.insert(0, str(triggerWidth))
-                            # self.trigwidth_entry.update()
-                            
-                        while True:
-                            ul.c_clear(self.board_num, self.channel_ct)
-                            time.sleep(triggerWidth)
-                            value_ct += ul.c_in_32(self.board_num, self.channel_ct)
-                            # print(value_ct)
-                            time.sleep(1 / freq - triggerWidth)
-                            
-                            endTime = time.time()
-                            # print(endTime - startTime, dwellTime)
-                            if (endTime - startTime) >= dwellTime:
-                                break
+                    if self.SR400_status == 1:
+                        # Reset and start the SR400
+                        self.SR400.write(b'CR\n')
+                        self.SR400.write(b'CS\n')
 
-                        self.epicsQueue.put(value_ct)
-                        #freq_value = dict(self.epics_freq.get('field(value)'))['value']
-                        freq_value = dict(self.epics_value.get())['freq']
-                        power_value = dict(self.epics_value.get())['power']
+                    # Start time for dwell period
+                    dwell_start_time = time.time()
 
-                        # if self.MCA4_status == 1:
-                        #     ul.v_out(self.board_num, 1, self.ao_range, 5)
-                        #     '''opens the gate for the laser pulses'''
+                    # Sleep for the dwell time
+                    time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
 
-                        # # Reset counters at the start of dwell time
-                        # if self.DAQ_status == 1:
-                        #     ul.c_clear(self.board_num, self.channel_ct)
+                    if self.MCA4_status == 1:
+                        ul.v_out(self.board_num, 1, self.ao_range, 0)
+                        '''closes the gate for the laser pulses'''
 
-                        if self.SR400_status == 1:
-                            # Reset and start the SR400
-                            self.SR400.write(b'CR\n')
-                            self.SR400.write(b'CS\n')
+                    # Read counts after dwell time
+                    value_ct = 0  # Initialize counts
 
-                        # Start time for dwell period
-                        dwell_start_time = time.time()
+                    if self.DAQ_status == 1:
+                        value_ct += ul.c_in_32(self.board_num, self.channel_ct)
 
-                        # Sleep for the dwell time
-                        # time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
+                    if self.SR400_status == 1:
+                        # Read counts from the SR400
+                        self.SR400.write(b'QA\n')
+                        countA = int(self.SR400.read(size=100).decode("ascii").strip())
+                        self.SR400.write(b'QB\n')
+                        countB = int(self.SR400.read(size=100).decode("ascii").strip())
+                        value_ct += (countA + countB)
 
-                        if self.MCA4_status == 1:
-                            ul.v_out(self.board_num, 1, self.ao_range, 0)
-                            '''closes the gate for the laser pulses'''
+                    # Get a voltage value from the DAQ
+                    if self.ai_info.resolution <= 16:
+                        # Use the a_in method for devices with a resolution <= 16
+                        # Convert the raw value to engineering units
+                        eng_units_value = self.ai_to_eng_units(
+                            ul.a_in(self.board_num, self.channel_ai, self.ai_range),
+                            self.ai_range, self.ai_info.resolution)
+                    else:
+                        # Use the a_in_32 method for devices with a resolution > 16
+                        # Convert the raw value to engineering units
+                        eng_units_value = self.ai_to_eng_units(
+                            ul.a_in_32(self.board_num, self.channel_ai, self.ai_range), self.ai_range,
+                            self.ai_info.resolution)
 
-                        # Read counts after dwell time
-                        # value_ct = 0  # Initialize counts
-
-                        # if self.DAQ_status == 1:
-                            # value_ct += ul.c_in_32(self.board_num, self.channel_ct)
-
-                        if self.SR400_status == 1:
-                            # Read counts from the SR400
-                            self.SR400.write(b'QA\n')
-                            countA = int(self.SR400.read(size=100).decode("ascii").strip())
-                            self.SR400.write(b'QB\n')
-                            countB = int(self.SR400.read(size=100).decode("ascii").strip())
-                            value_ct += (countA + countB)
-
-                        # Get a voltage value from the DAQ
-                        if self.ai_info.resolution <= 16:
-                            # Use the a_in method for devices with a resolution <= 16
-                            # Convert the raw value to engineering units
-                            eng_units_value = self.ai_to_eng_units(
-                                ul.a_in(self.board_num, self.channel_ai, self.ai_range),
-                                self.ai_range, self.ai_info.resolution)
-                        else:
-                            # Use the a_in_32 method for devices with a resolution > 16
-                            # Convert the raw value to engineering units
-                            eng_units_value = self.ai_to_eng_units(
-                                ul.a_in_32(self.board_num, self.channel_ai, self.ai_range), self.ai_range,
-                                self.ai_info.resolution)
-
-                        # Get a value from the DMM if the box was checked
-                        if self.DMM_status == 1:
-                            self.DMM.sendall(b'MEAS:VOLT:DC? 10,0.0001\r\n')
-                            time.sleep(0.05)
-                            DMM_response = self.DMM.recv(1000).decode().strip()
-                            try:
-                                DMM_readback = float(DMM_response)
-                                self.DMM_readback_value["text"] = '{:.3f}'.format(DMM_readback)
-                            except ValueError:
-                                print("DMM reading error occurred at voltage " + str(self.ao_set) + " of cycle " + str(
-                                    j) + ".")
-                                DMM_readback = 0
-                        else:
+                    # Get a value from the DMM if the box was checked
+                    if self.DMM_status == 1:
+                        self.DMM.sendall(b'MEAS:VOLT:DC? 10,0.0001\r\n')
+                        time.sleep(0.05)
+                        DMM_response = self.DMM.recv(1000).decode().strip()
+                        try:
+                            DMM_readback = float(DMM_response)
+                            self.DMM_readback_value["text"] = '{:.3f}'.format(DMM_readback)
+                        except ValueError:
+                            print("DMM reading error occurred at voltage " + str(self.ao_set) + " of cycle " + str(
+                                j) + ".")
                             DMM_readback = 0
+                    else:
+                        DMM_readback = 0
 
-                        self.value_ct["text"] = str(value_ct)  # display counts
-                        self.eng_value["text"] = '{:.3f}'.format(eng_units_value)  # display AI value
-                        self.data_ao_value["text"] = '{:.3f}'.format(self.ao_set)  # display current step
+                    self.value_ct["text"] = str(value_ct)  # display counts
+                    self.eng_value["text"] = '{:.3f}'.format(eng_units_value)  # display AI value
+                    self.data_ao_value["text"] = '{:.3f}'.format(self.ao_set)  # display current step
 
-                        # Calculate elapsed time
-                        current_time = time.time() - self.start_time
+                    # Calculate elapsed time
+                    current_time = time.time() - self.start_time
 
-                        # Update EPICS pva value
-                        # self.pv['value'] = int(value_ct)
-                        
-                        #bitin = ul.d_bit_in(self.board_num, 1, 7)
-                        #print("DI :", bitin)
+                    # Update EPICS pva value
+                    self.epicsQueue.put(value_ct)
+                    # freq_value = dict(self.epics_freq.get('field(value)'))['value']
+                    # power_value = dict(self.epics_power.get('field(value)'))['value']
+                    freq_value = dict(self.epics_value.get())['freq']
+                    power_value = dict(self.epics_value.get())['power']
 
-                        # Saves the data
-                        data = [self.ao_set, eng_units_value, DMM_readback, value_ct, current_time, freq_value, power_value]
+                    # self.pv['value'] = int(value_ct)
+                    
+                    #bitin = ul.d_bit_in(self.board_num, 1, 7)
+                    #print("DI :", bitin)
 
-                        self.update()
+                    # Saves the data
+                    data = [self.ao_set, eng_units_value, DMM_readback, value_ct, current_time, freq_value, power_value]
 
-                        if not self.scan_paused:
-                            if self.scan_running:
-                                try:
-                                    with open(self.dir_path, 'ab') as csv_file:
-                                        writer = csv.writer(csv_file, delimiter='\t')
-                                        writer.writerow(data)
-                                except ULError as e:
-                                    show_ul_error(e)
+                    self.update()
 
-                            # updates the while loop's condition (type casting required for exact arithmetic)
-                            if self.scan_start != self.scan_stop:
-                                self.ao_set = Decimal(str(self.ao_set)) + Decimal(str(self.scan_step_size))
-                                if self.scan_start > self.scan_stop:
-                                    condition = self.ao_set >= (self.scan_stop - 1E-6)
-                                else:
-                                    condition = self.ao_set <= (self.scan_stop + 1E-6)
-                            else:
-                                # If start == stop, we only want one iteration
-                                condition = False
-
-                            # updates the progress bar
-                            progress_value += self.progress_step
-                            if self.pb["value"] <= 100:
-                                self.pb["value"] = progress_value
-
-                            # sends the data to the plotting process
-                            self.giver.put(data)
-
-                        self.update()
-
-                        # self.triggering.clear()
-
-                else:
-                    # loop for the steps
-                    while condition and self.scan_running:
-                        # Set AO voltage
-                        ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
-
-                        if self.MCA4_status == 1:
-                            ul.v_out(self.board_num, 1, self.ao_range, 5)
-                            '''opens the gate for the laser pulses'''
-
-                        # Reset counters at the start of dwell time
-                        if self.DAQ_status == 1:
-                            ul.c_clear(self.board_num, self.channel_ct)
-
-                        if self.SR400_status == 1:
-                            # Reset and start the SR400
-                            self.SR400.write(b'CR\n')
-                            self.SR400.write(b'CS\n')
-
-                        # Start time for dwell period
-                        dwell_start_time = time.time()
-
-                        # Sleep for the dwell time
-                        time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
-
-                        if self.MCA4_status == 1:
-                            ul.v_out(self.board_num, 1, self.ao_range, 0)
-                            '''closes the gate for the laser pulses'''
-
-                        # Read counts after dwell time
-                        value_ct = 0  # Initialize counts
-
-                        if self.DAQ_status == 1:
-                            value_ct += ul.c_in_32(self.board_num, self.channel_ct)
-
-                        if self.SR400_status == 1:
-                            # Read counts from the SR400
-                            self.SR400.write(b'QA\n')
-                            countA = int(self.SR400.read(size=100).decode("ascii").strip())
-                            self.SR400.write(b'QB\n')
-                            countB = int(self.SR400.read(size=100).decode("ascii").strip())
-                            value_ct += (countA + countB)
-
-                        # Get a voltage value from the DAQ
-                        if self.ai_info.resolution <= 16:
-                            # Use the a_in method for devices with a resolution <= 16
-                            # Convert the raw value to engineering units
-                            eng_units_value = self.ai_to_eng_units(
-                                ul.a_in(self.board_num, self.channel_ai, self.ai_range),
-                                self.ai_range, self.ai_info.resolution)
-                        else:
-                            # Use the a_in_32 method for devices with a resolution > 16
-                            # Convert the raw value to engineering units
-                            eng_units_value = self.ai_to_eng_units(
-                                ul.a_in_32(self.board_num, self.channel_ai, self.ai_range), self.ai_range,
-                                self.ai_info.resolution)
-
-                        # Get a value from the DMM if the box was checked
-                        if self.DMM_status == 1:
-                            self.DMM.sendall(b'MEAS:VOLT:DC? 10,0.0001\r\n')
-                            time.sleep(0.05)
-                            DMM_response = self.DMM.recv(1000).decode().strip()
+                    if not self.scan_paused:
+                        if self.scan_running:
                             try:
-                                DMM_readback = float(DMM_response)
-                                self.DMM_readback_value["text"] = '{:.3f}'.format(DMM_readback)
-                            except ValueError:
-                                print("DMM reading error occurred at voltage " + str(self.ao_set) + " of cycle " + str(
-                                    j) + ".")
-                                DMM_readback = 0
-                        else:
-                            DMM_readback = 0
+                                with open(self.dir_path, 'ab') as csv_file:
+                                    writer = csv.writer(csv_file, delimiter='\t')
+                                    writer.writerow(data)
+                            except ULError as e:
+                                show_ul_error(e)
 
-                        self.value_ct["text"] = str(value_ct)  # display counts
-                        self.eng_value["text"] = '{:.3f}'.format(eng_units_value)  # display AI value
-                        self.data_ao_value["text"] = '{:.3f}'.format(self.ao_set)  # display current step
-
-                        # Calculate elapsed time
-                        current_time = time.time() - self.start_time
-
-                        # Update EPICS pva value
-                        self.epicsQueue.put(value_ct)
-                        # freq_value = dict(self.epics_freq.get('field(value)'))['value']
-                        # power_value = dict(self.epics_power.get('field(value)'))['value']
-                        freq_value = dict(self.epics_value.get())['freq']
-                        power_value = dict(self.epics_value.get())['power']
-
-                        # self.pv['value'] = int(value_ct)
-                        
-                        #bitin = ul.d_bit_in(self.board_num, 1, 7)
-                        #print("DI :", bitin)
-
-                        # Saves the data
-                        data = [self.ao_set, eng_units_value, DMM_readback, value_ct, current_time, freq_value, power_value]
-
-                        self.update()
-
-                        if not self.scan_paused:
-                            if self.scan_running:
-                                try:
-                                    with open(self.dir_path, 'ab') as csv_file:
-                                        writer = csv.writer(csv_file, delimiter='\t')
-                                        writer.writerow(data)
-                                except ULError as e:
-                                    show_ul_error(e)
-
-                            # updates the while loop's condition (type casting required for exact arithmetic)
-                            if self.scan_start != self.scan_stop:
-                                self.ao_set = Decimal(str(self.ao_set)) + Decimal(str(self.scan_step_size))
-                                if self.scan_start > self.scan_stop:
-                                    condition = self.ao_set >= (self.scan_stop - 1E-6)
-                                else:
-                                    condition = self.ao_set <= (self.scan_stop + 1E-6)
+                        # updates the while loop's condition (type casting required for exact arithmetic)
+                        if self.scan_start != self.scan_stop:
+                            self.ao_set = Decimal(str(self.ao_set)) + Decimal(str(self.scan_step_size))
+                            if self.scan_start > self.scan_stop:
+                                condition = self.ao_set >= (self.scan_stop - 1E-6)
                             else:
-                                # If start == stop, we only want one iteration
-                                condition = False
+                                condition = self.ao_set <= (self.scan_stop + 1E-6)
+                        else:
+                            # If start == stop, we only want one iteration
+                            condition = False
 
-                            # updates the progress bar
-                            progress_value += self.progress_step
-                            if self.pb["value"] <= 100:
-                                self.pb["value"] = progress_value
+                        # updates the progress bar
+                        progress_value += self.progress_step
+                        if self.pb["value"] <= 100:
+                            self.pb["value"] = progress_value
 
-                            # sends the data to the plotting process
-                            self.giver.put(data)
+                        # sends the data to the plotting process
+                        self.giver.put(data)
 
-                        self.update()
-
-                        # self.triggering.clear()
+                    self.update()
 
                 try:
                     with open(self.dir_path, 'ab') as csv_file:
@@ -461,11 +304,11 @@ class CLS_Scan(UIExample):
         if self.pause_scan_button:
             self.resume_scan()
         # enables the modification of parameters
-        self.range_ai_combobox['state'] = 'readonly'
-        self.range_ao_combobox['state'] = 'readonly'
-        self.channel_ao_entry['state'] = 'normal'
-        self.channel_ai_entry['state'] = 'normal'
-        self.channel_ct_entry['state'] = 'normal'
+        # self.range_ai_combobox['state'] = 'readonly'
+        # self.range_ao_combobox['state'] = 'readonly'
+        # self.channel_ao_entry['state'] = 'normal'
+        # self.channel_ai_entry['state'] = 'normal'
+        # self.channel_ct_entry['state'] = 'normal'
         self.start_scan_button["text"] = "Start scan"
         self.start_scan_button["command"] = self.scan_manager
         self.scan_start_entry['state'] = 'normal'
@@ -484,10 +327,10 @@ class CLS_Scan(UIExample):
         self.change_button['state'] = 'normal'
         self.dir_entry['state'] = 'normal'
         self.file_entry['state'] = 'normal'
-        self.DMM_checkbox["state"] = "normal"
-        self.SR400_checkbox["state"] = "normal"
-        self.DAQ_checkbox["state"] = "normal"
-        self.MCA4_checkbox['state'] = 'normal'
+        # self.DMM_checkbox["state"] = "normal"
+        # self.SR400_checkbox["state"] = "normal"
+        # self.DAQ_checkbox["state"] = "normal"
+        # self.MCA4_checkbox['state'] = 'normal'
         self.new_outfile_checkbox['state'] = 'normal'
 
         self.trigdelay_entry['state'] = 'normal'
@@ -497,22 +340,22 @@ class CLS_Scan(UIExample):
 
 
         # Sets the output voltage back to 0
-        ul.v_out(self.board_num, self.channel_ao, self.ao_range, 0)
-        self.data_ao_value["text"] = '{:.3f}'.format(0)
-        self.eng_value["text"] = '{:.3f}'.format(0)
-        self.DMM_readback_value["text"] = '{:.3f}'.format(0)
+        # ul.v_out(self.board_num, self.channel_ao, self.ao_range, 0)
+        # self.data_ao_value["text"] = '{:.3f}'.format(0)
+        # self.eng_value["text"] = '{:.3f}'.format(0)
+        # self.DMM_readback_value["text"] = '{:.3f}'.format(0)
 
         # closes connection to exterior device
-        if self.DMM_status == 1:
-            try:
-                self.DMM.close()
-            except Exception:
-                self.DMM_status = 0
-        if self.SR400_status == 1:
-            try:
-                self.SR400.close()
-            except Exception:
-                self.SR400_status = 0
+        # if self.DMM_status == 1:
+        #     try:
+        #         self.DMM.close()
+        #     except Exception:
+        #         self.DMM_status = 0
+        # if self.SR400_status == 1:
+        #     try:
+        #         self.SR400.close()
+        #     except Exception:
+        #         self.SR400_status = 0
         self.scan_running = False
         self.update()
 
@@ -524,11 +367,11 @@ class CLS_Scan(UIExample):
 
     def start_scan(self):
         # gets the value of necessary parameters
-        self.channel_ai = self.get_channel_num_ai()
-        self.ai_range = self.get_ai_range()
-        self.channel_ct = self.get_channel_num_ct()
-        self.channel_ao = self.get_channel_num_ao()
-        self.ao_range = self.get_ao_range()
+        # self.channel_ai = self.get_channel_num_ai()
+        # self.ai_range = self.get_ai_range()
+        # self.channel_ct = self.get_channel_num_ct()
+        # self.channel_ao = self.get_channel_num_ao()
+        # self.ao_range = self.get_ao_range()
         self.scan_start = self.get_scan_start_value()
         self.scan_stop = self.get_scan_stop_value()
         self.scan_step_size = self.get_scan_step_size_value()
@@ -537,10 +380,10 @@ class CLS_Scan(UIExample):
         self.mass = self.get_mass_value()
         self.wavenumber = self.get_wavenumber_value()
         self.beam_energy = self.get_beam_energy_value()
-        self.DAQ_status = self.get_DAQ()
-        self.DMM_status = self.get_DMM()
-        self.SR400_status = self.get_SR400()
-        self.MCA4_status = self.get_MCA4()
+        # self.DAQ_status = self.get_DAQ()
+        # self.DMM_status = self.get_DMM()
+        # self.SR400_status = self.get_SR400()
+        # self.MCA4_status = self.get_MCA4()
 
         self.trig_delay = self.get_trig_delay_value()
         self.trig_mode = self.get_trig_mode()
@@ -1040,12 +883,14 @@ class CLS_Scan(UIExample):
 
         self.device_label = tk.Label(device_frame, fg="red")
         self.device_label.grid(row=0, column=0, padx=3, pady=4)
-        # self.device_label.pack(fill=tk.NONE, anchor=tk.NW)
-        self.device_label["text"] = ('MCC Board Number ' + str(self.board_num)
-                                     + "    " + self.device_info.product_name
-                                     + " (" + self.device_info.unique_id + ")     AI resolution: "
-                                     + str(self.ai_info.resolution) +
-                                     "      AO resolution: " + str(self.ao_info.resolution))
+        # # self.device_label.pack(fill=tk.NONE, anchor=tk.NW)
+        # self.device_label["text"] = ('MCC Board Number ' + str(self.board_num)
+        #                              + "    " + self.device_info.product_name
+        #                              + " (" + self.device_info.unique_id + ")     AI resolution: "
+        #                              + str(self.ai_info.resolution) +
+        #                              "      AO resolution: " + str(self.ao_info.resolution))
+        self.device_label["text"] = ('FPGA Board IP: 192.168.150.215')
+
         # quit button
         quit_button = tk.Button(device_frame)
         quit_button["text"] = "Quit Program"
@@ -1059,195 +904,195 @@ class CLS_Scan(UIExample):
         channel_frame = tk.Frame(self, relief='sunken', borderwidth=3)
         channel_frame.pack(anchor=tk.NW, padx=3, pady=5)
 
-        channel_vcmd_ao = self.register(self.validate_channel_ao_entry)
-        self.ao_set = 0
+        # channel_vcmd_ao = self.register(self.validate_channel_ao_entry)
+        # self.ao_set = 0
 
-        if self.ao_info.num_chans > 1:
-            channel_ao_entry_label = tk.Label(channel_frame)
-            channel_ao_entry_label["text"] = "MCC Analog Output Ch #:"
-            channel_ao_entry_label.grid(row=0, column=0, sticky=tk.W, padx=3, pady=10)
+        # if self.ao_info.num_chans > 1:
+            # channel_ao_entry_label = tk.Label(channel_frame)
+            # channel_ao_entry_label["text"] = "MCC Analog Output Ch #:"
+            # channel_ao_entry_label.grid(row=0, column=0, sticky=tk.W, padx=3, pady=10)
 
-            self.channel_ao_entry = tk.Spinbox(
-                channel_frame, from_=0, to=max(self.ao_info.num_chans - 1, 0),
-                validate='key', validatecommand=(channel_vcmd_ao, '%P'), width=3)
-            self.channel_ao_entry.grid(row=0, column=1, sticky=tk.E)
+            # self.channel_ao_entry = tk.Spinbox(
+            #     channel_frame, from_=0, to=max(self.ao_info.num_chans - 1, 0),
+            #     validate='key', validatecommand=(channel_vcmd_ao, '%P'), width=3)
+            # self.channel_ao_entry.grid(row=0, column=1, sticky=tk.E)
 
-        range_ao_label = tk.Label(channel_frame)
-        range_ao_label["text"] = "Range:"
-        range_ao_label.grid(row=1, column=0, sticky=tk.W)
+        # range_ao_label = tk.Label(channel_frame)
+        # range_ao_label["text"] = "Range:"
+        # range_ao_label.grid(row=1, column=0, sticky=tk.W)
 
-        self.range_ao_combobox = Combobox(channel_frame, width=12)
-        self.range_ao_combobox["state"] = "readonly"
-        self.range_ao_combobox["values"] = [
-            x.name for x in self.ao_info.supported_ranges]
-        self.range_ao_combobox.current(0)  # choose default value of 0, +-10V
-        self.range_ao_combobox.grid(row=1, column=1, sticky=tk.E, padx=3, pady=6)
+        # self.range_ao_combobox = Combobox(channel_frame, width=12)
+        # self.range_ao_combobox["state"] = "readonly"
+        # self.range_ao_combobox["values"] = [
+        #     x.name for x in self.ao_info.supported_ranges]
+        # self.range_ao_combobox.current(0)  # choose default value of 0, +-10V
+        # self.range_ao_combobox.grid(row=1, column=1, sticky=tk.E, padx=3, pady=6)
 
-        channel_vcmd_ai = self.register(self.validate_channel_ai_entry)
-        if self.ai_info.num_chans > 1:
-            channel_ai_entry_label = tk.Label(channel_frame)
-            channel_ai_entry_label["text"] = "MCC Analog Input Ch #:   "
-            channel_ai_entry_label.grid(row=3, column=0, sticky=tk.W, padx=3, pady=3)
+        # channel_vcmd_ai = self.register(self.validate_channel_ai_entry)
+        # if self.ai_info.num_chans > 1:
+        #     channel_ai_entry_label = tk.Label(channel_frame)
+        #     channel_ai_entry_label["text"] = "MCC Analog Input Ch #:   "
+        #     channel_ai_entry_label.grid(row=3, column=0, sticky=tk.W, padx=3, pady=3)
 
-            self.channel_ai_entry = tk.Spinbox(channel_frame, from_=0, to=max(self.ai_info.num_chans - 1, 0),
-                                               validate='key', validatecommand=(channel_vcmd_ai, '%P'), width=3)
-            self.channel_ai_entry.grid(row=3, column=1, sticky=tk.E, padx=3, pady=3)
+        #     self.channel_ai_entry = tk.Spinbox(channel_frame, from_=0, to=max(self.ai_info.num_chans - 1, 0),
+        #                                        validate='key', validatecommand=(channel_vcmd_ai, '%P'), width=3)
+        #     self.channel_ai_entry.grid(row=3, column=1, sticky=tk.E, padx=3, pady=3)
 
-        range_ai_label = tk.Label(channel_frame)
-        range_ai_label["text"] = "Range:"
-        range_ai_label.grid(row=4, column=0, sticky=tk.W, padx=3, pady=3)
+        # range_ai_label = tk.Label(channel_frame)
+        # range_ai_label["text"] = "Range:"
+        # range_ai_label.grid(row=4, column=0, sticky=tk.W, padx=3, pady=3)
 
-        self.range_ai_combobox = Combobox(channel_frame, width=12)
-        self.range_ai_combobox["state"] = "readonly"
-        self.range_ai_combobox["values"] = [
-            x.name for x in self.ai_info.supported_ranges]
-        self.range_ai_combobox.current(1)  # choose default value of 1, +-10V
-        self.range_ai_combobox.grid(row=4, column=1, sticky=tk.E, padx=3, pady=3)
+        # self.range_ai_combobox = Combobox(channel_frame, width=12)
+        # self.range_ai_combobox["state"] = "readonly"
+        # self.range_ai_combobox["values"] = [
+        #     x.name for x in self.ai_info.supported_ranges]
+        # self.range_ai_combobox.current(1)  # choose default value of 1, +-10V
+        # self.range_ai_combobox.grid(row=4, column=1, sticky=tk.E, padx=3, pady=3)
 
-        channel_vcmd_ct = self.register(self.validate_channel_ct_entry)
+        # channel_vcmd_ct = self.register(self.validate_channel_ct_entry)
 
-        if self.ctr_info.num_chans > 1:
-            channel_ct_entry_label = tk.Label(channel_frame)
-            channel_ct_entry_label["text"] = "Counter Ch #:"
-            channel_ct_entry_label.grid(
-                row=7, column=0, sticky=tk.W, padx=3, pady=3)
+        # if self.ctr_info.num_chans > 1:
+        #     channel_ct_entry_label = tk.Label(channel_frame)
+        #     channel_ct_entry_label["text"] = "Counter Ch #:"
+        #     channel_ct_entry_label.grid(
+        #         row=7, column=0, sticky=tk.W, padx=3, pady=3)
 
-            chan_info_list = self.ctr_info.chan_info
-            first_chan = chan_info_list[0].channel_num
-            last_chan = first_chan
-            for chan_info in chan_info_list:
-                if chan_info.channel_num >= last_chan:
-                    last_chan = chan_info.channel_num
-                else:
-                    break
-            self.channel_ct_entry = tk.Spinbox(
-                channel_frame, from_=first_chan, to=last_chan,
-                validate='key', validatecommand=(channel_vcmd_ct, '%P'), width=3)
-            self.channel_ct_entry.grid(row=7, column=0, sticky=tk.E, padx=3, pady=3)
+        #     chan_info_list = self.ctr_info.chan_info
+        #     first_chan = chan_info_list[0].channel_num
+        #     last_chan = first_chan
+        #     for chan_info in chan_info_list:
+        #         if chan_info.channel_num >= last_chan:
+        #             last_chan = chan_info.channel_num
+        #         else:
+        #             break
+        #     self.channel_ct_entry = tk.Spinbox(
+        #         channel_frame, from_=first_chan, to=last_chan,
+        #         validate='key', validatecommand=(channel_vcmd_ct, '%P'), width=3)
+        #     self.channel_ct_entry.grid(row=7, column=0, sticky=tk.E, padx=3, pady=3)
 
-        # DMM checkbox
-        self.var_DMM = tk.IntVar()
-        self.DMM_checkbox = tk.Checkbutton(channel_frame, text='Enable DMM', var=self.var_DMM, onvalue=1, offvalue=0)
-        self.DMM_checkbox.grid(row=5, column=1, sticky=tk.W, padx=3, pady=3)
+        # # DMM checkbox
+        # self.var_DMM = tk.IntVar()
+        # self.DMM_checkbox = tk.Checkbutton(channel_frame, text='Enable DMM', var=self.var_DMM, onvalue=1, offvalue=0)
+        # self.DMM_checkbox.grid(row=5, column=1, sticky=tk.W, padx=3, pady=3)
 
-        # DAQ checkbox
-        self.var_DAQ = tk.IntVar()
-        self.DAQ_checkbox = tk.Checkbutton(channel_frame, text='Enable DAQ', var=self.var_DAQ, onvalue=1, offvalue=0,
-                                           command=self.switch_SR400)
-        self.DAQ_checkbox.grid(row=7, column=1, sticky=tk.W, padx=3, pady=3)
-        self.DAQ_checkbox.select()
+        # # DAQ checkbox
+        # self.var_DAQ = tk.IntVar()
+        # self.DAQ_checkbox = tk.Checkbutton(channel_frame, text='Enable DAQ', var=self.var_DAQ, onvalue=1, offvalue=0,
+        #                                    command=self.switch_SR400)
+        # self.DAQ_checkbox.grid(row=7, column=1, sticky=tk.W, padx=3, pady=3)
+        # self.DAQ_checkbox.select()
 
-        # SR400 checkbox
-        self.var_SR400 = tk.IntVar()
-        self.SR400_checkbox = tk.Checkbutton(channel_frame, text='Enable SR400', var=self.var_SR400, onvalue=1,
-                                             offvalue=0, command=self.switch_DAQ)
-        self.SR400_checkbox.grid(row=8, column=1, sticky=tk.W, padx=3, pady=3)
+        # # SR400 checkbox
+        # self.var_SR400 = tk.IntVar()
+        # self.SR400_checkbox = tk.Checkbutton(channel_frame, text='Enable SR400', var=self.var_SR400, onvalue=1,
+        #                                      offvalue=0, command=self.switch_DAQ)
+        # self.SR400_checkbox.grid(row=8, column=1, sticky=tk.W, padx=3, pady=3)
 
-        # MCA4 checkbox
-        self.var_MCA4 = tk.IntVar()
-        self.MCA4_checkbox = tk.Checkbutton(channel_frame, text='Enable MCA4', var=self.var_MCA4, onvalue=1, offvalue=0,
-                                            command=self.activate_MCA4)
-        self.MCA4_checkbox.grid(row=9, column=1, sticky=tk.W, padx=3, pady=3)
+        # # MCA4 checkbox
+        # self.var_MCA4 = tk.IntVar()
+        # self.MCA4_checkbox = tk.Checkbutton(channel_frame, text='Enable MCA4', var=self.var_MCA4, onvalue=1, offvalue=0,
+        #                                     command=self.activate_MCA4)
+        # self.MCA4_checkbox.grid(row=9, column=1, sticky=tk.W, padx=3, pady=3)
 
         ##################################################################
 
         # Channels feedback
 
-        # label of the Voltage output
-        data_ao_value_label = tk.Label(channel_frame)
-        data_ao_value_label["text"] = "Output (V):                  "
-        data_ao_value_label.grid(row=0, column=2, padx=20, pady=10, sticky=tk.W)
-        # Voltage output setting
-        self.data_ao_value = tk.Label(channel_frame, width=10)
-        self.data_ao_value.grid(row=0, column=2, sticky=tk.E, padx=10, pady=3)
-        self.data_ao_value["text"] = '{:.3f}'.format(0)
+        # # label of the Voltage output
+        # data_ao_value_label = tk.Label(channel_frame)
+        # data_ao_value_label["text"] = "Output (V):                  "
+        # data_ao_value_label.grid(row=0, column=2, padx=20, pady=10, sticky=tk.W)
+        # # Voltage output setting
+        # self.data_ao_value = tk.Label(channel_frame, width=10)
+        # self.data_ao_value.grid(row=0, column=2, sticky=tk.E, padx=10, pady=3)
+        # self.data_ao_value["text"] = '{:.3f}'.format(0)
 
-        # precision of AO with chosen range
-        # label of the AO precision
-        AO_precision_label = tk.Label(channel_frame, fg="red")
-        AO_precision_label["text"] = "AO precision for \u00B110V:                    "
-        AO_precision_label.grid(row=1, column=2, padx=20, pady=10, sticky=tk.W)
-        # AI precision display
-        self.AO_precision = tk.Label(channel_frame, width=10, fg="red")
-        self.AO_precision.grid(row=1, column=2, padx=10, pady=10, sticky=tk.E)
-        self.AO_precision["text"] = '{:.4f}'.format(
-            20 / ((2 ** self.ao_info.resolution) - 1))  # display input value, initial
+        # # precision of AO with chosen range
+        # # label of the AO precision
+        # AO_precision_label = tk.Label(channel_frame, fg="red")
+        # AO_precision_label["text"] = "AO precision for \u00B110V:                    "
+        # AO_precision_label.grid(row=1, column=2, padx=20, pady=10, sticky=tk.W)
+        # # AI precision display
+        # self.AO_precision = tk.Label(channel_frame, width=10, fg="red")
+        # self.AO_precision.grid(row=1, column=2, padx=10, pady=10, sticky=tk.E)
+        # self.AO_precision["text"] = '{:.4f}'.format(
+        #     20 / ((2 ** self.ao_info.resolution) - 1))  # display input value, initial
 
-        # label of the Voltage readback
-        eng_value_left_label = tk.Label(channel_frame)
-        eng_value_left_label["text"] = "Readback (V):                 "
-        eng_value_left_label.grid(row=3, column=2, padx=20, pady=10, sticky=tk.W)
-        # Voltage readback
-        self.eng_value = tk.Label(channel_frame, width=10)
-        self.eng_value.grid(row=3, column=2, padx=10, pady=10, sticky=tk.E)
-        self.eng_value["text"] = '{:.4f}'.format(0)  # display input value, initial
+        # # label of the Voltage readback
+        # eng_value_left_label = tk.Label(channel_frame)
+        # eng_value_left_label["text"] = "Readback (V):                 "
+        # eng_value_left_label.grid(row=3, column=2, padx=20, pady=10, sticky=tk.W)
+        # # Voltage readback
+        # self.eng_value = tk.Label(channel_frame, width=10)
+        # self.eng_value.grid(row=3, column=2, padx=10, pady=10, sticky=tk.E)
+        # self.eng_value["text"] = '{:.4f}'.format(0)  # display input value, initial
 
-        # precision of AI with chosen range
-        # label of the AI precision
-        AI_precision_label = tk.Label(channel_frame, fg="red")
-        AI_precision_label["text"] = "AI precision for \u00B110V:                    "
-        AI_precision_label.grid(row=4, column=2, padx=20, pady=10, sticky=tk.W)
-        # AI precision display
-        self.AI_precision = tk.Label(channel_frame, width=10, fg="red")
-        self.AI_precision.grid(row=4, column=2, padx=10, pady=10, sticky=tk.E)
-        # self.AI_precision["text"] = '{:.4f}'.format(self.on_select_ai_combobox())
-        self.AI_precision["text"] = '{:.4f}'.format(
-            20 / ((2 ** self.ai_info.resolution) - 1))  # display input value, initial
+        # # precision of AI with chosen range
+        # # label of the AI precision
+        # AI_precision_label = tk.Label(channel_frame, fg="red")
+        # AI_precision_label["text"] = "AI precision for \u00B110V:                    "
+        # AI_precision_label.grid(row=4, column=2, padx=20, pady=10, sticky=tk.W)
+        # # AI precision display
+        # self.AI_precision = tk.Label(channel_frame, width=10, fg="red")
+        # self.AI_precision.grid(row=4, column=2, padx=10, pady=10, sticky=tk.E)
+        # # self.AI_precision["text"] = '{:.4f}'.format(self.on_select_ai_combobox())
+        # self.AI_precision["text"] = '{:.4f}'.format(
+        #     20 / ((2 ** self.ai_info.resolution) - 1))  # display input value, initial
 
-        # DMM label
-        DMM_label = tk.Label(channel_frame)
-        DMM_label["text"] = "DMM Settings:"
-        DMM_label.grid(row=5, column=0, padx=3, pady=10, sticky=tk.W)
-        # DMM readback
-        self.DMM_readback_label = tk.Label(channel_frame)
-        self.DMM_readback_label["text"] = "Readback (V):"
-        self.DMM_readback_label.grid(row=5, column=2, padx=20, pady=10, sticky=tk.W)
-        # DMM readback value
-        self.DMM_readback_value = tk.Label(channel_frame, width=10)
-        self.DMM_readback_value.grid(row=5, column=2, padx=10, pady=10, sticky=tk.E)
-        self.DMM_readback_value["text"] = '{:.4f}'.format(0)
+        # # DMM label
+        # DMM_label = tk.Label(channel_frame)
+        # DMM_label["text"] = "DMM Settings:"
+        # DMM_label.grid(row=5, column=0, padx=3, pady=10, sticky=tk.W)
+        # # DMM readback
+        # self.DMM_readback_label = tk.Label(channel_frame)
+        # self.DMM_readback_label["text"] = "Readback (V):"
+        # self.DMM_readback_label.grid(row=5, column=2, padx=20, pady=10, sticky=tk.W)
+        # # DMM readback value
+        # self.DMM_readback_value = tk.Label(channel_frame, width=10)
+        # self.DMM_readback_value.grid(row=5, column=2, padx=10, pady=10, sticky=tk.E)
+        # self.DMM_readback_value["text"] = '{:.4f}'.format(0)
 
-        # label of the counter
-        value_ct_left_label = tk.Label(channel_frame)
-        value_ct_left_label["text"] = "Ion/Photon Count:"
-        value_ct_left_label.grid(row=7, column=2, padx=20, pady=10, sticky=tk.W)
-        # counter value
-        self.value_ct = tk.Label(channel_frame, width=10)
-        self.value_ct.grid(row=7, column=2, sticky=tk.E, padx=10, pady=3)
-        self.value_ct["text"] = "0"  # display Counter value, initial
+        # # label of the counter
+        # value_ct_left_label = tk.Label(channel_frame)
+        # value_ct_left_label["text"] = "Ion/Photon Count:"
+        # value_ct_left_label.grid(row=7, column=2, padx=20, pady=10, sticky=tk.W)
+        # # counter value
+        # self.value_ct = tk.Label(channel_frame, width=10)
+        # self.value_ct.grid(row=7, column=2, sticky=tk.E, padx=10, pady=3)
+        # self.value_ct["text"] = "0"  # display Counter value, initial
 
-        # DAQ label
-        DAQ_label = tk.Label(channel_frame)
-        DAQ_label["text"] = "MCC counter Ch #:"
-        DAQ_label.grid(row=7, column=0, padx=3, pady=10, sticky=tk.W)
+        # # DAQ label
+        # DAQ_label = tk.Label(channel_frame)
+        # DAQ_label["text"] = "MCC counter Ch #:"
+        # DAQ_label.grid(row=7, column=0, padx=3, pady=10, sticky=tk.W)
 
-        # SR400 label
-        SR400_label = tk.Label(channel_frame)
-        SR400_label["text"] = "SR400 Settings:"
-        SR400_label.grid(row=8, column=0, padx=3, pady=10, sticky=tk.W)
-        # SR400 readback
-        self.SR400_readback_label = tk.Label(channel_frame)
-        self.SR400_readback_label["text"] = "Ion/Photon Count:"
-        self.SR400_readback_label.grid(row=8, column=2, padx=20, pady=10, sticky=tk.W)
-        # SR400 readback value
-        self.SR400_readback_value = tk.Label(channel_frame, width=10)
-        self.SR400_readback_value.grid(row=8, column=2, padx=10, pady=10, sticky=tk.E)
-        self.SR400_readback_value["text"] = '0'
+        # # SR400 label
+        # SR400_label = tk.Label(channel_frame)
+        # SR400_label["text"] = "SR400 Settings:"
+        # SR400_label.grid(row=8, column=0, padx=3, pady=10, sticky=tk.W)
+        # # SR400 readback
+        # self.SR400_readback_label = tk.Label(channel_frame)
+        # self.SR400_readback_label["text"] = "Ion/Photon Count:"
+        # self.SR400_readback_label.grid(row=8, column=2, padx=20, pady=10, sticky=tk.W)
+        # # SR400 readback value
+        # self.SR400_readback_value = tk.Label(channel_frame, width=10)
+        # self.SR400_readback_value.grid(row=8, column=2, padx=10, pady=10, sticky=tk.E)
+        # self.SR400_readback_value["text"] = '0'
 
-        # MCA4 label
-        MCA4_label = tk.Label(channel_frame)
-        MCA4_label["text"] = "MCA4 Settings:"
-        MCA4_label.grid(row=9, column=0, padx=3, pady=10, sticky=tk.W)
+        # # MCA4 label
+        # MCA4_label = tk.Label(channel_frame)
+        # MCA4_label["text"] = "MCA4 Settings:"
+        # MCA4_label.grid(row=9, column=0, padx=3, pady=10, sticky=tk.W)
 
-        sep1 = tk.Label(channel_frame)
-        sep1["text"] = "---------------------------------------------------------------------------------------------"
-        sep1.grid(row=2, column=0, columnspan=3, padx=0, pady=0)
+        # sep1 = tk.Label(channel_frame)
+        # sep1["text"] = "---------------------------------------------------------------------------------------------"
+        # sep1.grid(row=2, column=0, columnspan=3, padx=0, pady=0)
 
-        sep2 = tk.Label(channel_frame)
-        sep2["text"] = "----------------------------------------------------------------------------------------------"
-        sep2.grid(row=6, column=0, columnspan=3, padx=0, pady=0)
+        # sep2 = tk.Label(channel_frame)
+        # sep2["text"] = "----------------------------------------------------------------------------------------------"
+        # sep2.grid(row=6, column=0, columnspan=3, padx=0, pady=0)
 
-        tk.Canvas(channel_frame, width=5, height=450, bg='#ECECEC').grid(column=3, row=0, rowspan=10)
+        # tk.Canvas(channel_frame, width=5, height=450, bg='#ECECEC').grid(column=3, row=0, rowspan=10)
 
         ##################################################################
 
@@ -1293,8 +1138,7 @@ class CLS_Scan(UIExample):
         cycle_label["text"] = "Cycle #:         "
         cycle_label.grid(row=0, column=6, padx=10, pady=10, sticky=tk.W)
         #  set value of cycle
-        self.scan_cycle_entry = tk.Entry(
-            channel_frame, validate='key', validatecommand=(scan_cycle_value, '%P'), width=7)
+        self.scan_cycle_entry = tk.Entry(channel_frame, validate='key', validatecommand=(scan_cycle_value, '%P'), width=7)
         self.scan_cycle_entry.grid(row=0, column=6, sticky=tk.E, padx=10, pady=3)
         self.scan_cycle_entry.insert(0, "1")
 
