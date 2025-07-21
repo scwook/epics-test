@@ -121,7 +121,9 @@ class CLS_Scan(UIExample):
             if self.scan_running:
                 self.ao_set = self.scan_start
                 # ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
-                message = "CLS:SetVolt\r\n"
+                command = "CLS:SetVolt"
+                voltage = self.scan_start
+                message = f"{command} {voltage}\r\n"
                 client_socket.send(message.encode())
 
                 self.cycle_status_label["text"] = "Current cycle #:     " + str(j)
@@ -152,20 +154,25 @@ class CLS_Scan(UIExample):
                 # loop for the steps
                 while condition and self.scan_running:
                     # Set AO voltage
-                    ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
-
-                    if self.MCA4_status == 1:
-                        ul.v_out(self.board_num, 1, self.ao_range, 5)
-                        '''opens the gate for the laser pulses'''
+                    # ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
+                    command = "CLS:SetVolt"
+                    voltage = self.ao_set
+                    message = f"{command} {voltage}\r\n"
+                    client_socket.send(message.encode())
+                    # if self.MCA4_status == 1:
+                    #     ul.v_out(self.board_num, 1, self.ao_range, 5)
+                    #     '''opens the gate for the laser pulses'''
 
                     # Reset counters at the start of dwell time
-                    if self.DAQ_status == 1:
-                        ul.c_clear(self.board_num, self.channel_ct)
+                    # if self.DAQ_status == 1:
+                    #     ul.c_clear(self.board_num, self.channel_ct)
+                    message = "CLS:SetClear\r\n"
+                    client_socket.send(message.encode())
 
-                    if self.SR400_status == 1:
-                        # Reset and start the SR400
-                        self.SR400.write(b'CR\n')
-                        self.SR400.write(b'CS\n')
+                    # if self.SR400_status == 1:
+                    #     # Reset and start the SR400
+                    #     self.SR400.write(b'CR\n')
+                    #     self.SR400.write(b'CS\n')
 
                     # Start time for dwell period
                     dwell_start_time = time.time()
@@ -173,9 +180,9 @@ class CLS_Scan(UIExample):
                     # Sleep for the dwell time
                     time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
 
-                    if self.MCA4_status == 1:
-                        ul.v_out(self.board_num, 1, self.ao_range, 0)
-                        '''closes the gate for the laser pulses'''
+                    # if self.MCA4_status == 1:
+                    #     ul.v_out(self.board_num, 1, self.ao_range, 0)
+                    #     '''closes the gate for the laser pulses'''
 
                     # Read counts after dwell time
                     value_ct = 0  # Initialize counts
