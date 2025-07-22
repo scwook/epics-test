@@ -1,0 +1,5 @@
+record(ao, "cls:volt")
+{
+    field(DTYP, "stream")
+    field(OUT, "@clsDaq.proto SetVolt $(PORT)")
+}

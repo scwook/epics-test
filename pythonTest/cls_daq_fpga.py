@@ -62,7 +62,7 @@ class CLS_Scan(UIExample):
         # self.board_num = 0
         self.scan_running = False
         self.scan_paused = False
-        # self.ao_set = 0.0
+        self.ao_set = 0.0
         self.giver = giver
         self.scanning = scan_on
 
@@ -73,7 +73,7 @@ class CLS_Scan(UIExample):
         #self.epics_freq = Channel('ISOL-CLS:LSR-WM:GetFreq', CA)
         #self.epics_power = Channel('ISOL-CLS:LSR-WM:GetPower', CA)
         self.epics_value = Channel('WM:GetMeas')
-
+        slef.epics_dmm = Channel('ISOL-CLS:DMM')
         # Trigger variable
         # self.trigQueue = trig_queue
         # self.triggering = trig_on
@@ -186,51 +186,53 @@ class CLS_Scan(UIExample):
 
                     # Read counts after dwell time
                     value_ct = 0  # Initialize counts
-
-                    if self.DAQ_status == 1:
-                        value_ct += ul.c_in_32(self.board_num, self.channel_ct)
-
-                    if self.SR400_status == 1:
+                 
+#                    if self.DAQ_status == 1:
+#                        value_ct += ul.c_in_32(self.board_num, self.channel_ct)
+                     message = "CLS:GetCount\r\n"
+                     value_ct += client_socket.send(message.encode())
+#                    if self.SR400_status == 1:
                         # Read counts from the SR400
-                        self.SR400.write(b'QA\n')
-                        countA = int(self.SR400.read(size=100).decode("ascii").strip())
-                        self.SR400.write(b'QB\n')
-                        countB = int(self.SR400.read(size=100).decode("ascii").strip())
-                        value_ct += (countA + countB)
+#                        self.SR400.write(b'QA\n')
+#                        countA = int(self.SR400.read(size=100).decode("ascii").strip())
+##                        self.SR400.write(b'QB\n')
+#                        countB = int(self.SR400.read(size=100).decode("ascii").strip())
+#                        value_ct += (countA + countB)
 
                     # Get a voltage value from the DAQ
-                    if self.ai_info.resolution <= 16:
+#                    if self.ai_info.resolution <= 16:
                         # Use the a_in method for devices with a resolution <= 16
                         # Convert the raw value to engineering units
-                        eng_units_value = self.ai_to_eng_units(
-                            ul.a_in(self.board_num, self.channel_ai, self.ai_range),
-                            self.ai_range, self.ai_info.resolution)
-                    else:
+#                        eng_units_value = self.ai_to_eng_units(
+#                            ul.a_in(self.board_num, self.channel_ai, self.ai_range),
+#                            self.ai_range, self.ai_info.resolution)
+
+#                    else:
                         # Use the a_in_32 method for devices with a resolution > 16
                         # Convert the raw value to engineering units
-                        eng_units_value = self.ai_to_eng_units(
-                            ul.a_in_32(self.board_num, self.channel_ai, self.ai_range), self.ai_range,
-                            self.ai_info.resolution)
+#                        eng_units_value = self.ai_to_eng_units(
+#                            ul.a_in_32(self.board_num, self.channel_ai, self.ai_range), self.ai_range,
+#                            self.ai_info.resolution)
+                    eng_units_value = self.epics_dmm.get()
 
                     # Get a value from the DMM if the box was checked
-                    if self.DMM_status == 1:
-                        self.DMM.sendall(b'MEAS:VOLT:DC? 10,0.0001\r\n')
-                        time.sleep(0.05)
-                        DMM_response = self.DMM.recv(1000).decode().strip()
-                        try:
-                            DMM_readback = float(DMM_response)
-                            self.DMM_readback_value["text"] = '{:.3f}'.format(DMM_readback)
-                        except ValueError:
-                            print("DMM reading error occurred at voltage " + str(self.ao_set) + " of cycle " + str(
-                                j) + ".")
-                            DMM_readback = 0
-                    else:
-                        DMM_readback = 0
-
+#                    if self.DMM_status == 1:
+#                        self.DMM.sendall(b'MEAS:VOLT:DC? 10,0.0001\r\n')
+#                        time.sleep(0.05)
+#                        DMM_response = self.DMM.recv(1000).decode().strip()
+#                        try:
+#                            DMM_readback = float(DMM_response)
+#                            self.DMM_readback_value["text"] = '{:.3f}'.format(DMM_readback)
+#                        except ValueError:
+#                            print("DMM reading error occurred at voltage " + str(self.ao_set) + " of cycle " + str(
+#                                j) + ".")
+#                            DMM_readback = 0
+#                    else:
+#                        DMM_readback = 0
+                    
                     self.value_ct["text"] = str(value_ct)  # display counts
                     self.eng_value["text"] = '{:.3f}'.format(eng_units_value)  # display AI value
                     self.data_ao_value["text"] = '{:.3f}'.format(self.ao_set)  # display current step
-
                     # Calculate elapsed time
                     current_time = time.time() - self.start_time
 
