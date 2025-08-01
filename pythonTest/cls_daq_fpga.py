@@ -22,7 +22,7 @@ import unicodecsv as csv
 from datetime import datetime, date
 import time
 import socket
-import serial
+# import serial
 import os
 from decimal import Decimal
 from ctypes import *
@@ -52,7 +52,6 @@ except ImportError:
 
 font = {'family': 'normal', 'weight': 'normal', 'size': 12}
 
-
 class CLS_Scan(UIExample):
 
     def __init__(self, master, giver, scan_on, epics_queue):
@@ -66,17 +65,21 @@ class CLS_Scan(UIExample):
         self.giver = giver
         self.scanning = scan_on
 
+        self.fpga_socket = None
+        self.epics_wm_isConnected = False
+        self.epics_dmm_isConnected = False
         # epics value queue
         self.epicsQueue = epics_queue
 
         # epics channel access for freq, power
         #self.epics_freq = Channel('ISOL-CLS:LSR-WM:GetFreq', CA)
         #self.epics_power = Channel('ISOL-CLS:LSR-WM:GetPower', CA)
-        self.epics_value = Channel('WM:GetMeas')
-        slef.epics_dmm = Channel('ISOL-CLS:DMM')
+        self.epics_wm = Channel('WM:GetMeas')
+        self.epics_dmm = Channel('ISOL-CLS:CEC-DMM:GetVolt')
         # Trigger variable
         # self.trigQueue = trig_queue
         # self.triggering = trig_on
+        # messagebox.showerror("Error", 'ABCDE')
 
         # creates the UI if proper conditions are met
         # try:
@@ -98,10 +101,19 @@ class CLS_Scan(UIExample):
             # else:
             #     self.create_unsupported_widgets()
 
-        self.create_widgets()
+        # self.fpga_socket.connect((fpga_ip, fpga_port))
 
+        self.create_widgets()
         self.giver.put("GUI Created!")
+
+        # except socket.timeout:
+        #     print("FPGA connection timeout")
+
+        # except socket.error as e:
+        #     print(f"FPGA connection error: {e}")
+
             # self.trigQueue.put(self.board_num)
+        # self.create_widgets()
 
         # except ULError:
             # self.create_unsupported_widgets(True)
@@ -124,7 +136,7 @@ class CLS_Scan(UIExample):
                 command = "CLS:SetVolt"
                 voltage = self.scan_start
                 message = f"{command} {voltage}\r\n"
-                client_socket.send(message.encode())
+                self.fpga_socket.send(message.encode())
 
                 self.cycle_status_label["text"] = "Current cycle #:     " + str(j)
 
@@ -158,7 +170,7 @@ class CLS_Scan(UIExample):
                     command = "CLS:SetVolt"
                     voltage = self.ao_set
                     message = f"{command} {voltage}\r\n"
-                    client_socket.send(message.encode())
+                    self.fpga_socket.send(message.encode())
                     # if self.MCA4_status == 1:
                     #     ul.v_out(self.board_num, 1, self.ao_range, 5)
                     #     '''opens the gate for the laser pulses'''
@@ -166,8 +178,8 @@ class CLS_Scan(UIExample):
                     # Reset counters at the start of dwell time
                     # if self.DAQ_status == 1:
                     #     ul.c_clear(self.board_num, self.channel_ct)
-                    message = "CLS:SetClear\r\n"
-                    client_socket.send(message.encode())
+                    message = "CLS:SetClrCount\r\n"
+                    self.fpga_socket.send(message.encode())
 
                     # if self.SR400_status == 1:
                     #     # Reset and start the SR400
@@ -175,7 +187,7 @@ class CLS_Scan(UIExample):
                     #     self.SR400.write(b'CS\n')
 
                     # Start time for dwell period
-                    dwell_start_time = time.time()
+                    # dwell_start_time = time.time()
 
                     # Sleep for the dwell time
                     time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
@@ -189,50 +201,18 @@ class CLS_Scan(UIExample):
                  
 #                    if self.DAQ_status == 1:
 #                        value_ct += ul.c_in_32(self.board_num, self.channel_ct)
-                     message = "CLS:GetCount\r\n"
-                     value_ct += client_socket.send(message.encode())
-#                    if self.SR400_status == 1:
-                        # Read counts from the SR400
-#                        self.SR400.write(b'QA\n')
-#                        countA = int(self.SR400.read(size=100).decode("ascii").strip())
-##                        self.SR400.write(b'QB\n')
-#                        countB = int(self.SR400.read(size=100).decode("ascii").strip())
-#                        value_ct += (countA + countB)
+                    message = "CLS:GetCount\r\n"
+                    self.fpga_socket.send(message.encode())
+                    value_ct += int(self.fpga_socket.recv(8).decode())
 
-                    # Get a voltage value from the DAQ
-#                    if self.ai_info.resolution <= 16:
-                        # Use the a_in method for devices with a resolution <= 16
-                        # Convert the raw value to engineering units
-#                        eng_units_value = self.ai_to_eng_units(
-#                            ul.a_in(self.board_num, self.channel_ai, self.ai_range),
-#                            self.ai_range, self.ai_info.resolution)
-
-#                    else:
-                        # Use the a_in_32 method for devices with a resolution > 16
-                        # Convert the raw value to engineering units
-#                        eng_units_value = self.ai_to_eng_units(
-#                            ul.a_in_32(self.board_num, self.channel_ai, self.ai_range), self.ai_range,
-#                            self.ai_info.resolution)
-                    eng_units_value = self.epics_dmm.get()
-
-                    # Get a value from the DMM if the box was checked
-#                    if self.DMM_status == 1:
-#                        self.DMM.sendall(b'MEAS:VOLT:DC? 10,0.0001\r\n')
-#                        time.sleep(0.05)
-#                        DMM_response = self.DMM.recv(1000).decode().strip()
-#                        try:
-#                            DMM_readback = float(DMM_response)
-#                            self.DMM_readback_value["text"] = '{:.3f}'.format(DMM_readback)
-#                        except ValueError:
-#                            print("DMM reading error occurred at voltage " + str(self.ao_set) + " of cycle " + str(
-#                                j) + ".")
-#                            DMM_readback = 0
-#                    else:
-#                        DMM_readback = 0
+                    if self.epics_dmm_isConnected:
+                        dmm_value = dict(self.epics_dmm.get())['value']
+                    else:
+                        dmm_value = 0
                     
-                    self.value_ct["text"] = str(value_ct)  # display counts
-                    self.eng_value["text"] = '{:.3f}'.format(eng_units_value)  # display AI value
-                    self.data_ao_value["text"] = '{:.3f}'.format(self.ao_set)  # display current step
+                    # self.value_ct["text"] = str(value_ct)  # display counts
+                    # self.eng_value["text"] = '{:.3f}'.format(eng_units_value)  # display AI value
+                    # self.data_ao_value["text"] = '{:.3f}'.format(self.ao_set)  # display current step
                     # Calculate elapsed time
                     current_time = time.time() - self.start_time
 
@@ -240,17 +220,18 @@ class CLS_Scan(UIExample):
                     self.epicsQueue.put(value_ct)
                     # freq_value = dict(self.epics_freq.get('field(value)'))['value']
                     # power_value = dict(self.epics_power.get('field(value)'))['value']
-                    freq_value = dict(self.epics_value.get())['freq']
-                    power_value = dict(self.epics_value.get())['power']
+                    if self.epics_wm_isConnected:
+                        freq_value = dict(self.epics_wm.get())['freq']
+                        power_value = dict(self.epics_wm.get())['power']
+                    else:
+                        freq_value = 0
+                        power_value = 0
 
                     # self.pv['value'] = int(value_ct)
-                    
-                    #bitin = ul.d_bit_in(self.board_num, 1, 7)
-                    #print("DI :", bitin)
 
                     # Saves the data
-                    data = [self.ao_set, eng_units_value, DMM_readback, value_ct, current_time, freq_value, power_value]
-
+                    data = [self.ao_set, dmm_value, value_ct, current_time, freq_value, power_value]
+                    print(self.ao_set,dmm_value,value_ct,current_time,freq_value,power_value)
                     self.update()
 
                     if not self.scan_paused:
@@ -259,8 +240,8 @@ class CLS_Scan(UIExample):
                                 with open(self.dir_path, 'ab') as csv_file:
                                     writer = csv.writer(csv_file, delimiter='\t')
                                     writer.writerow(data)
-                            except ULError as e:
-                                show_ul_error(e)
+                            except:
+                                show_ul_error('file write error')
 
                         # updates the while loop's condition (type casting required for exact arithmetic)
                         if self.scan_start != self.scan_stop:
@@ -287,17 +268,18 @@ class CLS_Scan(UIExample):
                     with open(self.dir_path, 'ab') as csv_file:
                         writer = csv.writer(csv_file, delimiter='\t')
                         writer.writerow(['*', '*', '*', '*', '*', '*'])
-                except ULError as e:
-                    show_ul_error(e)
+                except:
+                    show_ul_error("error")
 
-                if self.MCA4_status == 1:
-                    string = 'halt'
-                    string = string.encode('utf-8')
-                    self.mca4DLL.RunCmd(0, string)
+                # if self.MCA4_status == 1:
+                #     string = 'halt'
+                #     string = string.encode('utf-8')
+                #     self.mca4DLL.RunCmd(0, string)
 
         # makes the progress bar full
         self.pb["value"] = 100
         csv_file.close()
+        self.fpga_socket.close()
 
         self.giver.put("Done")
 
@@ -400,14 +382,14 @@ class CLS_Scan(UIExample):
         self.trig_width = self.get_trig_width_value()
 
         # Verifies if the inputs are valid
-        if self.scan_start > 10 or self.scan_start < -10 or self.scan_stop > 10 or self.scan_stop < -10:
-            messagebox.showerror("Invalid Range", "Voltages must be kept in [-10 V, 10 V].")
+        if self.scan_start > 5 or self.scan_start < -5 or self.scan_stop > 5 or self.scan_stop < -5:
+            messagebox.showerror("Invalid Range", "Voltages must be kept in [-5 V, 5 V].")
             return
         if self.mass == 0:
             messagebox.showerror("Invalid Isotope", "The isotope you entered (mass number and element) was not found.")
             return
         if self.scan_start != self.scan_stop:
-            if self.scan_start + self.scan_step_size > 10 or self.scan_start - self.scan_step_size < -10:
+            if self.scan_start + self.scan_step_size > 5 or self.scan_start - self.scan_step_size < -5:
                 messagebox.showerror("Invalid Input", "Step size is too large!")
                 return
             if self.scan_step_size == 0:
@@ -416,18 +398,19 @@ class CLS_Scan(UIExample):
         else:
             # When start equals stop, we allow step size of zero
             self.scan_step_size = 0
-        if self.DAQ_status == 0 and self.SR400_status == 0:
-            messagebox.showerror("Invalid Input", "Please select at least one counter.")
-            return
+        # if self.DAQ_status == 0 and self.SR400_status == 0:
+            # messagebox.showerror("Invalid Input", "Please select at least one counter.")
+            # return
+
         # scan can only begin if there are no parameter errors
         self.scanning.set()
 
         # prevents modification of parameters mid-scan
-        self.range_ai_combobox['state'] = 'disabled'
-        self.range_ao_combobox['state'] = 'disabled'
-        self.channel_ao_entry['state'] = 'disabled'
-        self.channel_ai_entry['state'] = 'disabled'
-        self.channel_ct_entry['state'] = 'disabled'
+        # self.range_ai_combobox['state'] = 'disabled'
+        # self.range_ao_combobox['state'] = 'disabled'
+        # self.channel_ao_entry['state'] = 'disabled'
+        # self.channel_ai_entry['state'] = 'disabled'
+        # self.channel_ct_entry['state'] = 'disabled'
 
         self.start_scan_button["text"] = "Stop scan"
         self.start_scan_button["command"] = self.hard_stop_scan
@@ -449,10 +432,10 @@ class CLS_Scan(UIExample):
         self.change_button['state'] = 'disabled'
         self.dir_entry['state'] = 'disabled'
         self.file_entry['state'] = 'disabled'
-        self.DMM_checkbox["state"] = "disabled"
-        self.SR400_checkbox["state"] = "disabled"
-        self.DAQ_checkbox["state"] = "disabled"
-        self.MCA4_checkbox['state'] = 'disabled'
+        # self.DMM_checkbox["state"] = "disabled"
+        # self.SR400_checkbox["state"] = "disabled"
+        # self.DAQ_checkbox["state"] = "disabled"
+        # self.MCA4_checkbox['state'] = 'disabled'
         self.new_outfile_checkbox['state'] = 'disabled'
 
         self.trigdelay_entry['state'] = 'disabled'
@@ -482,63 +465,33 @@ class CLS_Scan(UIExample):
             self.dir_path += ' ' + now.strftime("%H{0}%M{0}%S").format(*'\uA789')
 
         # opens connections with exterior devices
-        if self.DMM_status == 1:
-            try:
-                # opens the connection with the DMM
-                host = "169.254.114.102"  # To find the IP address, see DMM manual
-                port = 5024  # The DMM always uses port 5024
-                self.DMM = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.DMM.connect((host, port))
-                # sets the input impedance to auto (resulting in High Z for normal voltage ranges)
-                # self.DMM.sendall(b'SENT: VOLT:IMP:AUTO ON \r\n')
-            except Exception:
-                self.DMM_status = 0
-                self.DMM_checkbox.deselect()
-                messagebox.showerror("Error", "Connection with the DMM has failed")
-                self.stop_scan()
+        # if self.DMM_status == 1:
+        #     try:
+        #         # opens the connection with the DMM
+        #         host = "169.254.114.102"  # To find the IP address, see DMM manual
+        #         port = 5024  # The DMM always uses port 5024
+        #         self.DMM = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #         self.DMM.connect((host, port))
+        #         # sets the input impedance to auto (resulting in High Z for normal voltage ranges)
+        #         # self.DMM.sendall(b'SENT: VOLT:IMP:AUTO ON \r\n')
+        #     except Exception:
+        #         self.DMM_status = 0
+        #         self.DMM_checkbox.deselect()
+        #         messagebox.showerror("Error", "Connection with the DMM has failed")
+        #         self.stop_scan()
 
-        if self.SR400_status == 1:
-            try:
-                # opens the connection with the SR400 and sends the command for the setup
-                # list of all the commands to send for setup
-                """
-                equivalence table:
-                A=0
-                B=1
-                T=2
-                """
-                cmd = []
+        try:
+            fpga_ip = '192.168.131.201'
+            fpga_port = 9009
+            self.fpga_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.fpga_socket.settimeout(1)  # 연결 제한 시간 설정 (초)
+            self.fpga_socket.connect((fpga_ip,fpga_port))
+        except Exception:
+            messagebox.showerror("Timeout", "FPGA connection failed")
+            return
 
-                # sets the step duration to the dwell_time
-                cmd.append("CP2," + str(self.scan_dwell_time * 1E4))
-
-                # sets the discriminator level for input A and B
-                cmd.append("DL0,-0.075;DL1,-0.075")
-
-                # opens the serial connection (change com port)
-                self.SR400 = serial.Serial(port='COM4', baudrate=9600)
-                self.SR400.setDTR(True)
-
-                # sends all the command for the setup
-                for x in cmd:
-                    x = bytes(x, "ascii") + b'\n'
-                    self.SR400.write(x)
-            except Exception:
-                self.SR400_status = 0
-                self.SR400_checkbox.deselect()
-                messagebox.showerror("Error", "Connection with the SR400 has failed")
-                self.stop_scan()
-
-        if self.MCA4_status == 1:
-            string = 'cycles=' + str(int(self.number_step + 0.1))
-            string = string.encode('utf-8')
-            self.mca4DLL.RunCmd(0, string)
-
-            self.period = 0.1  # corresponds to 100us in ms
-
-            string = 'swpreset=' + str(self.scan_dwell_time / self.period)
-            string = string.encode('utf-8')
-            self.mca4DLL.RunCmd(0, string)
+        self.epics_wm_isConnected = self.epics_wm.isConnected()
+        self.epics_dmm_isConnected = self.epics_dmm.isConnected()
 
         # writes the headline of the csv file
         time_now = datetime.now()
@@ -560,8 +513,8 @@ class CLS_Scan(UIExample):
                 writer.writerow([time_now, isotope, mass, wavenumber, beam_energy, lin])
                 writer.writerow([scan_start, scan_stop, scan_step_size, scan_dwell_time])
                 writer.writerow(['AOut (V)', 'AIn (V)', 'DMM Read (V)', 'Ion/Photon Count', 'Time (s)', 'Frequency(THz)', 'Power(mW)'])
-        except ULError as e:
-            show_ul_error(e)
+        except:
+            show_ul_error('write error')
         self.update()
         self.scan()
 
@@ -654,37 +607,37 @@ class CLS_Scan(UIExample):
         except ValueError:
             return 0
 
-    def get_channel_num_ai(self):
-        if self.ai_info.num_chans == 1:
-            return 0
-        try:
-            return int(self.channel_ai_entry.get())
-        except ValueError:
+    # def get_channel_num_ai(self):
+    #     if self.ai_info.num_chans == 1:
+    #         return 0
+    #     try:
+    #         return int(self.channel_ai_entry.get())
+    #     except ValueError:
+    #         return 0
+
+    # def get_channel_num_ao(self):
+    #     if self.ao_info.num_chans == 1:
+    #         return 0
+    #     try:
+    #         return int(self.channel_ao_entry.get())
+    #     except ValueError:
             return 0
 
-    def get_channel_num_ao(self):
-        if self.ao_info.num_chans == 1:
-            return 0
-        try:
-            return int(self.channel_ao_entry.get())
-        except ValueError:
-            return 0
+    # def get_channel_num_ct(self):
+    #     if self.ctr_info.num_chans == 1:
+    #         return self.ctr_info.chan_info[0].channel_num
+    #     try:
+    #         return int(self.channel_ct_entry.get())
+    #     except ValueError:
+    #         return 0
 
-    def get_channel_num_ct(self):
-        if self.ctr_info.num_chans == 1:
-            return self.ctr_info.chan_info[0].channel_num
-        try:
-            return int(self.channel_ct_entry.get())
-        except ValueError:
-            return 0
+    # def get_ai_range(self):
+    #     selected_index = self.range_ai_combobox.current()
+    #     return self.ai_info.supported_ranges[selected_index]
 
-    def get_ai_range(self):
-        selected_index = self.range_ai_combobox.current()
-        return self.ai_info.supported_ranges[selected_index]
-
-    def get_ao_range(self):
-        selected_index = self.range_ao_combobox.current()
-        return self.ao_info.supported_ranges[selected_index]
+    # def get_ao_range(self):
+    #     selected_index = self.range_ao_combobox.current()
+    #     return self.ao_info.supported_ranges[selected_index]
 
     def get_scan_start(self):
         if self.ai_info.num_chans == 1:
@@ -694,29 +647,29 @@ class CLS_Scan(UIExample):
         except ValueError:
             return 0
 
-    def get_DMM(self):
-        try:
-            return self.var_DMM.get()
-        except ValueError:
-            return 0
+    # def get_DMM(self):
+    #     try:
+    #         return self.var_DMM.get()
+    #     except ValueError:
+    #         return 0
 
-    def get_DAQ(self):
-        try:
-            return self.var_DAQ.get()
-        except ValueError:
-            return 0
+    # def get_DAQ(self):
+    #     try:
+    #         return self.var_DAQ.get()
+    #     except ValueError:
+    #         return 0
 
-    def get_SR400(self):
-        try:
-            return self.var_SR400.get()
-        except ValueError:
-            return 0
+    # def get_SR400(self):
+    #     try:
+    #         return self.var_SR400.get()
+    #     except ValueError:
+    #         return 0
 
-    def get_MCA4(self):
-        try:
-            return self.var_MCA4.get()
-        except ValueError:
-            return 0
+    # def get_MCA4(self):
+    #     try:
+    #         return self.var_MCA4.get()
+    #     except ValueError:
+    #         return 0
 
     def get_trig_delay_value(self):
         try:
@@ -1374,15 +1327,15 @@ class CLS_Plot(UIExample):
                 raise ValueError('If you are seeing this, something very wrong has happened.')
 
             if data == 'Time (s)':
-                return 4  # Index for time data
+                return 3  # Index for time data
             elif data == 'Analog Output (V)':
                 return 0
             elif data == 'Analog Input (V)':
                 return 1
             elif data == 'DMM Reading (V)':
-                return 2
+                return 1
             elif data == 'Ion/Photon Count':
-                return 3  # Index for counts
+                return 2  # Index for counts
             else:
                 raise ValueError('Invalid data series selected.')
         except ValueError:
@@ -1604,7 +1557,6 @@ def cls_epics(equeue, e):
     # EPICS variable
     pv = PvObject({'value': INT})
     pvaServer = PvaServer('DAQ:COUNT', pv)
-
     while True:
         try:
             pv['value'] = int(equeue.get(block=False))
@@ -1632,7 +1584,7 @@ if __name__ == "__main__":
     queue = multiprocessing.Queue()
     
     # trigger queue to get board number for trigger process
-    tqueue = multiprocessing.Queue()
+    # tqueue = multiprocessing.Queue()
 
     # epics queue 
     equeue = multiprocessing.Queue()
@@ -1641,7 +1593,7 @@ if __name__ == "__main__":
     e = multiprocessing.Event()
 
     # creates an event to inform external input to trigger scan
-    te = multiprocessing.Event()
+    # te = multiprocessing.Event()
 
     # creates and starts processes that create the two GUIs
     data_process = multiprocessing.Process(target=data_gen, args=(queue, e, equeue))

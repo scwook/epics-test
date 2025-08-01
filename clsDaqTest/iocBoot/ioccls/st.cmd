@@ -1,4 +1,4 @@
-#!../../bin/darwin-x86/cls
+#!../../bin/darwin-aarch64/cls
 
 #- You may have to change cls to something else
 #- everywhere it appears in this file
@@ -13,7 +13,7 @@ cd "${TOP}"
 dbLoadDatabase "dbd/cls.dbd"
 cls_registerRecordDeviceDriver pdbbase
 
-drvAsynIPPortConfigure("CLS-DAQ", "10.1.100.253:9009", 0, 0, 0)
+drvAsynIPPortConfigure("CLS-DAQ", "192.168.131.200:9009", 0, 0, 0)
 
 ## Load record instances
 dbLoadRecords("db/clsDaq.db","PORT=CLS-DAQ")
