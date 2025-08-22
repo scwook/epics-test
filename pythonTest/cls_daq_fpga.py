@@ -355,7 +355,7 @@ class CLS_Scan(UIExample):
 
         # Connection FPGA board
         try:
-            fpga_ip = '192.168.131.201'
+            fpga_ip = '192.168.150.221'
             fpga_port = 9009
             self.fpga_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.fpga_socket.settimeout(1)  # 연결 제한 시간 설정 (초)
