@@ -113,10 +113,8 @@ class CLS_Scan(UIExample):
             if self.scan_running:
                 self.ao_set = self.scan_start
                 # ul.v_out(self.board_num, self.channel_ao, self.ao_range, self.ao_set)
-                command = "CLS:SetVolt"
                 voltage = self.scan_start
-                message = f"{command} {voltage}\r\n"
-                self.fpga_socket.send(message.encode())
+                self.set_volt_fpga(voltage)
 
                 self.cycle_status_label["text"] = "Current cycle #:     " + str(j)
 
@@ -132,13 +130,10 @@ class CLS_Scan(UIExample):
                 # loop for the steps
                 while condition and self.scan_running:
 
-                    command = "CLS:SetVolt"
                     voltage = self.ao_set
-                    message = f"{command} {voltage}\r\n"
-                    self.fpga_socket.send(message.encode())
+                    self.set_volt_fpga(voltage)
 
-                    message = "CLS:SetClrCount\r\n"
-                    self.fpga_socket.send(message.encode())
+                    self.set_clear_count_fpga()
 
                     # Sleep for the dwell time
                     time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
@@ -146,9 +141,7 @@ class CLS_Scan(UIExample):
                     # Read counts after dwell time
                     value_ct = 0  # Initialize counts
 
-                    message = "CLS:GetCount\r\n"
-                    self.fpga_socket.send(message.encode())
-                    value_ct += int(self.fpga_socket.recv(8).decode())
+                    value_ct += int(self.get_count_fpga())
 
                     if self.epics_dmm_isConnected:
                         dmm_value = dict(self.epics_dmm.get())['value']
@@ -356,9 +349,10 @@ class CLS_Scan(UIExample):
         # Connection FPGA board
         try:
             fpga_ip = '192.168.150.221'
-            fpga_port = 9009
+            fpga_port = 9000
             self.fpga_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.fpga_socket.settimeout(1)  # 연결 제한 시간 설정 (초)
+            self.fpga_socket.settimeout(2)  # 연결 제한 시간 설정 (초)
+            self.fpga_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.fpga_socket.connect((fpga_ip,fpga_port))
         except Exception:
             messagebox.showerror("Timeout", "FPGA connection failed")
@@ -366,21 +360,15 @@ class CLS_Scan(UIExample):
         
         # Set Trigger mode
         trigger_mode = self.trig_mode
-        command = "CLS:SetTrigger"
-        message = f"{command} {trigger_mode}\r\n"
-        self.fpga_socket.send(message.encode())
+        self.set_trigger_mode_fpga(trigger_mode)
 
         # Set Trigger width
         trigger_delay = self.trig_delay
-        command = "CLS:SetTrgDelay"
-        message = f"{command} {trigger_delay}\r\n"
-        self.fpga_socket.send(message.encode())
+        self.set_trigger_delay_fpga(trigger_delay)
 
         # Set Trigger width
         trigger_width = self.trig_width
-        command = "CLS:SetTrgWidth"
-        message = f"{command} {trigger_width}\r\n"
-        self.fpga_socket.send(message.encode())
+        self.set_trigger_width_fpga(trigger_width)
 
         # Get wave meter and digital multimeter epics ioc connection status
         self.epics_wm_isConnected = self.epics_wm.isConnected()
@@ -418,7 +406,53 @@ class CLS_Scan(UIExample):
                 break
 
     #########################################################################
+    def pad_message(self, msg):
+        message_size = 24
+        data = msg.encode()
+        if len(data) < message_size:
+            data += b' ' * (message_size - len(data))
 
+        return data[:message_size]
+
+    def get_count_fpga(self):
+        message_size = 24
+        message = 'CLS:GetCount'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+        recv_data = self.fpga_socket.recv(message_size)
+
+        return recv_data
+
+    def set_volt_fpga(self, volt_val):
+        message = f'CLS:SetVolt {volt_val}'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+
+    def set_trigger_mode_fpga(self, mode):
+        message = f'CLS:SetTrgMode {mode}'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+
+    def set_trigger_width_fpga(self, width_val):
+        message = f'CLS:SetTrgWidth {width_val}'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+
+    def set_trigger_delay_fpga(self, delay_val):
+        message = f'CLS:SetTrgDelay {delay_val}'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+
+    def set_clear_count_fpga(self):
+        message = 'CLS:SetClrCount'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+    
+    def set_volt_offset_fpga(self, offset_val):
+        message = f'CLS:SetOffset {offset_val}'
+        command = self.pad_message(message)
+        self.fpga_socket.sendall(command)
+    
     # functions used in the start, scan and stop functions
     @staticmethod
     def ai_to_eng_units(raw_value, ai_range, resolution):
@@ -590,7 +624,7 @@ class CLS_Scan(UIExample):
 
         self.device_label = tk.Label(device_frame, fg="red")
         self.device_label.grid(row=0, column=0, padx=3, pady=4)
-        self.device_label["text"] = ('FPGA Board IP: 192.168.150.215')
+        self.device_label["text"] = ('FPGA Board IP: 192.168.150.221')
 
         # quit button
         quit_button = tk.Button(device_frame)
