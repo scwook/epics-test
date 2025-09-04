@@ -76,6 +76,9 @@ class CLS_Scan(UIExample):
         #self.epics_power = Channel('ISOL-CLS:LSR-WM:GetPower', CA)
         self.epics_wm = Channel('WM:GetMeas')
         self.epics_dmm = Channel('ISOL-CLS:CEC-DMM:GetVolt')
+
+        self.epics_wm.setConnectionCallback(self.wmConnectionCallback)
+        self.epics_dmm.setConnectionCallback(self.dmmConnectonCallback)
         # Trigger variable
         # self.trigQueue = trig_queue
         # self.triggering = trig_on
@@ -139,9 +142,8 @@ class CLS_Scan(UIExample):
                     time.sleep(self.scan_dwell_time / 1000.0)  # Convert ms to seconds
 
                     # Read counts after dwell time
-                    value_ct = 0  # Initialize counts
-
-                    value_ct += int(self.get_count_fpga())
+                    # value_ct = 0  # Initialize counts
+                    value_ct = int(self.get_count_fpga())
 
                     if self.epics_dmm_isConnected:
                         dmm_value = dict(self.epics_dmm.get())['value']
@@ -164,7 +166,7 @@ class CLS_Scan(UIExample):
 
                     # Saves the data
                     data = [self.ao_set, dmm_value, value_ct, current_time, freq_value, power_value]
-                    print(self.ao_set,dmm_value,value_ct,current_time,freq_value,power_value)
+                    # print(self.ao_set,dmm_value,value_ct,current_time,freq_value,power_value)
                     self.update()
 
                     if not self.scan_paused:
@@ -370,9 +372,8 @@ class CLS_Scan(UIExample):
         trigger_width = self.trig_width
         self.set_trigger_width_fpga(trigger_width)
 
-        # Get wave meter and digital multimeter epics ioc connection status
-        self.epics_wm_isConnected = self.epics_wm.isConnected()
-        self.epics_dmm_isConnected = self.epics_dmm.isConnected()
+        # Set alnalog output(CN0531) offset
+        self.set_volt_offset_fpga(51)        
 
         # writes the headline of the csv file
         time_now = datetime.now()
@@ -453,6 +454,12 @@ class CLS_Scan(UIExample):
         command = self.pad_message(message)
         self.fpga_socket.sendall(command)
     
+    def wmConnectionCallback(self, isConnected):
+        self.epics_wm_isConnected = isConnected
+
+    def dmmConnectonCallback(self, isConnected):
+        self.epics_dmm_isConnected = isConnected
+
     # functions used in the start, scan and stop functions
     @staticmethod
     def ai_to_eng_units(raw_value, ai_range, resolution):
@@ -906,6 +913,7 @@ class CLS_Plot(UIExample):
                 data = self.y_axis_combobox.get()
             else:
                 raise ValueError('If you are seeing this, something very wrong has happened.')
+# data = [self.ao_set, dmm_value, value_ct, current_time, freq_value, power_value]
 
             if data == 'Time (s)':
                 return 3  # Index for time data
